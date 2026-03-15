@@ -298,7 +298,7 @@ Promise.all(lapMeta.map(m => fetch('/api/telemetry/' + m.id).then(r => r.json())
             const zoom = (c) => {
                 if (sectorIdx < 0) {
                     delete c.options.scales.x.min;
-                    delete c.options.scales.x.max;
+                    c.options.scales.x.max = maxDist;
                 } else {
                     c.options.scales.x.min = sectorBounds[sectorIdx];
                     c.options.scales.x.max = sectorBounds[sectorIdx + 1];
