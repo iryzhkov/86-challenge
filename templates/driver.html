@@ -2,10 +2,10 @@
 {{define "content"}}
 {{with .Driver}}
 <div class="mb-6">
-    <h1 class="text-2xl font-bold text-gray-100">{{.Name}}</h1>
+    <h1 class="text-2xl font-bold text-gray-900">{{.Name}}</h1>
     <div class="text-gray-500 text-sm mt-1 flex flex-wrap gap-4">
         {{if .CarModel}}<span>{{.CarModel}} ({{.CarGeneration}})</span>{{end}}
-        {{if .CarClass}}<span class="bg-dark-700 px-2 py-0.5 rounded">{{.CarClass}}</span>{{end}}
+        {{if .CarClass}}<span class="bg-gray-100 px-2 py-0.5 rounded">{{.CarClass}}</span>{{end}}
         {{if .TireBrand}}<span>{{.TireBrand}} {{.TireModel}}</span>{{end}}
         {{if .ModPoints}}<span>{{.ModPoints}} mod points</span>{{end}}
     </div>
@@ -13,10 +13,10 @@
 {{end}}
 
 {{if .Records}}
-<h2 class="text-xl font-semibold text-gray-200 mb-4">Personal Bests</h2>
-<div class="bg-dark-800 rounded-lg shadow-lg shadow-black/20 table-wrap mb-8">
+<h2 class="text-xl font-semibold text-gray-800 mb-4">Personal Bests</h2>
+<div class="bg-white rounded-lg shadow table-wrap mb-8">
     <table class="w-full text-sm">
-        <thead class="bg-dark-700 text-gray-500 text-left">
+        <thead class="bg-gray-50 text-gray-600 text-left">
             <tr>
                 <th class="px-4 py-3">Track</th>
                 <th class="px-4 py-3">Class</th>
@@ -24,16 +24,16 @@
                 <th class="px-4 py-3"></th>
             </tr>
         </thead>
-        <tbody class="divide-y divide-gray-700">
+        <tbody class="divide-y divide-gray-100">
             {{range .Records}}
-            <tr class="hover:bg-dark-700 cursor-pointer" onclick="window.location='/session/{{.SessionID}}'">
+            <tr class="hover:bg-gray-50 cursor-pointer" onclick="window.location='/session/{{.SessionID}}'">
                 <td class="px-4 py-3 font-medium">{{.TrackName}} {{.TrackConfig}}</td>
                 <td class="px-4 py-3">
-                    {{if .CarClass}}<span class="text-xs bg-dark-700 px-2 py-0.5 rounded">{{.CarClass}}</span>{{end}}
+                    {{if .CarClass}}<span class="text-xs bg-gray-100 px-2 py-0.5 rounded">{{.CarClass}}</span>{{end}}
                 </td>
-                <td class="px-4 py-3 font-mono font-semibold text-green-400">{{.BestLapTime}}</td>
+                <td class="px-4 py-3 font-mono font-semibold text-green-700">{{.BestLapTime}}</td>
                 <td class="px-4 py-3">
-                    <button class="text-xs text-blue-400 hover:underline" data-compare-lap="{{.LapID}}" onclick="event.stopPropagation(); addToCompare({{.LapID}})">Compare</button>
+                    <button class="text-xs text-blue-600 hover:underline" data-compare-lap="{{.LapID}}" onclick="event.stopPropagation(); addToCompare({{.LapID}})">Compare</button>
                 </td>
             </tr>
             {{end}}
@@ -42,11 +42,11 @@
 </div>
 {{end}}
 
-<h2 class="text-xl font-semibold text-gray-200 mb-4">Sessions</h2>
+<h2 class="text-xl font-semibold text-gray-800 mb-4">Sessions</h2>
 {{if .Sessions}}
-<div class="bg-dark-800 rounded-lg shadow-lg shadow-black/20 table-wrap">
+<div class="bg-white rounded-lg shadow table-wrap">
     <table class="w-full text-sm">
-        <thead class="bg-dark-700 text-gray-500 text-left">
+        <thead class="bg-gray-50 text-gray-600 text-left">
             <tr>
                 <th class="px-4 py-3">Track</th>
                 <th class="px-4 py-3">Car</th>
@@ -55,16 +55,16 @@
                 <th class="px-4 py-3">Date</th>
             </tr>
         </thead>
-        <tbody class="divide-y divide-gray-700">
+        <tbody class="divide-y divide-gray-100">
             {{range .Sessions}}
-            <tr class="hover:bg-dark-700 cursor-pointer" onclick="window.location='/session/{{.ID}}'">
+            <tr class="hover:bg-gray-50 cursor-pointer" onclick="window.location='/session/{{.ID}}'">
                 <td class="px-4 py-3">{{.TrackName}} {{.TrackConfig}}</td>
                 <td class="px-4 py-3">
                     {{.CarModel}}
-                    {{if .CarClass}}<span class="text-xs bg-dark-700 px-2 py-0.5 rounded">{{.CarClass}}</span>{{end}}
+                    {{if .CarClass}}<span class="text-xs bg-gray-100 px-2 py-0.5 rounded">{{.CarClass}}</span>{{end}}
                 </td>
                 <td class="px-4 py-3 text-gray-500">{{.TireBrand}} {{.TireModel}}</td>
-                <td class="px-4 py-3 font-mono font-semibold text-green-400">{{.BestLapTime}}</td>
+                <td class="px-4 py-3 font-mono font-semibold text-green-700">{{.BestLapTime}}</td>
                 <td class="px-4 py-3 text-gray-500">{{.UploadedAt.Format "Jan 2, 2006"}}</td>
             </tr>
             {{end}}
@@ -72,7 +72,7 @@
     </table>
 </div>
 {{else}}
-<div class="bg-dark-800 rounded-lg shadow-lg shadow-black/20 p-8 text-center text-gray-500">
+<div class="bg-white rounded-lg shadow p-8 text-center text-gray-500">
     No sessions uploaded yet.
 </div>
 {{end}}

@@ -1,59 +1,59 @@
 {{template "base" .}}
 {{define "content"}}
 <div class="mb-8">
-    <h1 class="text-3xl font-bold text-gray-100 mb-2">86 Challenge Telemetry</h1>
-    <p class="text-gray-500">Upload RaceChrono VBO files, compare laps, track your progress.</p>
+    <h1 class="text-3xl font-bold text-gray-900 mb-2">86 Challenge Telemetry</h1>
+    <p class="text-gray-600">Upload RaceChrono VBO files, compare laps, track your progress.</p>
 </div>
 
 {{if .CurrentEvent}}
-<div class="bg-brand-900/30 border border-brand-800 rounded-lg p-6 mb-8">
+<div class="bg-red-50 border border-red-200 rounded-lg p-6 mb-8">
     <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
-            <p class="text-brand-500 text-sm font-semibold uppercase tracking-wide">Current Event</p>
-            <h2 class="text-xl font-bold text-gray-100 mt-1">{{.CurrentEvent.Name}}</h2>
-            <p class="text-gray-500">{{.CurrentEvent.TrackName}} {{.CurrentEvent.TrackConfig}} &mdash; {{.CurrentEvent.Date.Format "Jan 2, 2006"}}</p>
+            <p class="text-red-700 text-sm font-semibold uppercase tracking-wide">Current Event</p>
+            <h2 class="text-xl font-bold text-gray-900 mt-1">{{.CurrentEvent.Name}}</h2>
+            <p class="text-gray-600">{{.CurrentEvent.TrackName}} {{.CurrentEvent.TrackConfig}} &mdash; {{.CurrentEvent.Date.Format "Jan 2, 2006"}}</p>
             {{if .CurrentEvent.WeatherConditions}}
             <p class="text-gray-500 text-sm">{{.CurrentEvent.WeatherConditions}} {{printf "%.0f" .CurrentEvent.WeatherTempF}}°F</p>
             {{end}}
         </div>
         <div class="flex gap-3">
-            <a href="/event/{{.CurrentEvent.ID}}" class="bg-dark-800 text-gray-200 px-4 py-2 rounded-lg border hover:bg-dark-700">View</a>
-            <a href="/upload?event={{.CurrentEvent.ID}}" class="bg-brand-600 text-white px-4 py-2 rounded-lg hover:bg-brand-700">Upload Session</a>
+            <a href="/event/{{.CurrentEvent.ID}}" class="bg-white text-gray-800 px-4 py-2 rounded-lg border hover:bg-gray-50">View</a>
+            <a href="/upload?event={{.CurrentEvent.ID}}" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">Upload Session</a>
         </div>
     </div>
 </div>
 {{end}}
 
 <div class="flex gap-4 mb-8">
-    <a href="/upload" class="bg-brand-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-brand-700 transition">
+    <a href="/upload" class="bg-red-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-red-700 transition">
         Upload Session
     </a>
-    <a href="/leaderboard" class="bg-dark-700 text-gray-200 px-6 py-3 rounded-lg font-medium hover:bg-dark-700 transition">
+    <a href="/leaderboard" class="bg-gray-200 text-gray-800 px-6 py-3 rounded-lg font-medium hover:bg-gray-300 transition">
         Leaderboard
     </a>
 </div>
 
 {{if .UpcomingEvents}}
-<h2 class="text-xl font-semibold text-gray-200 mb-4">Upcoming Events</h2>
+<h2 class="text-xl font-semibold text-gray-800 mb-4">Upcoming Events</h2>
 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
     {{range .UpcomingEvents}}
-    <a href="/event/{{.ID}}" class="bg-dark-800 rounded-lg shadow-lg shadow-black/20 p-4 hover:shadow-lg hover:shadow-black/30 transition border-l-4 border-blue-400">
-        <p class="font-semibold text-gray-100">{{.Name}}</p>
+    <a href="/event/{{.ID}}" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition border-l-4 border-blue-400">
+        <p class="font-semibold text-gray-900">{{.Name}}</p>
         <p class="text-sm text-gray-500">{{.TrackName}} {{.TrackConfig}}</p>
-        <p class="text-sm text-gray-500 mt-1">{{.Date.Format "Jan 2, 2006"}}{{if .Organizer}} &mdash; {{.Organizer}}{{end}}</p>
+        <p class="text-sm text-gray-400 mt-1">{{.Date.Format "Jan 2, 2006"}}{{if .Organizer}} &mdash; {{.Organizer}}{{end}}</p>
     </a>
     {{end}}
 </div>
 {{end}}
 
 {{if .RecentPast}}
-<h2 class="text-xl font-semibold text-gray-200 mb-4">Recent Events</h2>
+<h2 class="text-xl font-semibold text-gray-800 mb-4">Recent Events</h2>
 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
     {{range .RecentPast}}
-    <a href="/event/{{.ID}}" class="bg-dark-800 rounded-lg shadow-lg shadow-black/20 p-4 hover:shadow-lg hover:shadow-black/30 transition">
-        <p class="font-semibold text-gray-100">{{.Name}}</p>
+    <a href="/event/{{.ID}}" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
+        <p class="font-semibold text-gray-900">{{.Name}}</p>
         <p class="text-sm text-gray-500">{{.TrackName}} {{.TrackConfig}}</p>
-        <p class="text-sm text-gray-500 mt-1">{{.Date.Format "Jan 2, 2006"}}
+        <p class="text-sm text-gray-400 mt-1">{{.Date.Format "Jan 2, 2006"}}
             {{if .WeatherConditions}} &mdash; {{.WeatherConditions}} {{printf "%.0f" .WeatherTempF}}°F{{end}}
         </p>
     </a>
@@ -61,11 +61,11 @@
 </div>
 {{end}}
 
-<h2 class="text-xl font-semibold text-gray-200 mb-4">Recent Uploads</h2>
+<h2 class="text-xl font-semibold text-gray-800 mb-4">Recent Uploads</h2>
 {{if .RecentSessions}}
-<div class="bg-dark-800 rounded-lg shadow-lg shadow-black/20 table-wrap">
+<div class="bg-white rounded-lg shadow table-wrap">
     <table class="w-full text-sm">
-        <thead class="bg-dark-700 text-gray-500 text-left">
+        <thead class="bg-gray-50 text-gray-600 text-left">
             <tr>
                 <th class="px-4 py-3">Driver</th>
                 <th class="px-4 py-3">Track</th>
@@ -75,17 +75,17 @@
                 <th class="px-4 py-3">Date</th>
             </tr>
         </thead>
-        <tbody class="divide-y divide-gray-700">
+        <tbody class="divide-y divide-gray-100">
             {{range .RecentSessions}}
-            <tr class="hover:bg-dark-700 cursor-pointer" onclick="window.location='/session/{{.ID}}'">
+            <tr class="hover:bg-gray-50 cursor-pointer" onclick="window.location='/session/{{.ID}}'">
                 <td class="px-4 py-3 font-medium">{{.DriverName}}</td>
                 <td class="px-4 py-3">{{.TrackName}} {{.TrackConfig}}</td>
                 <td class="px-4 py-3">
                     {{.CarModel}}
-                    {{if .CarClass}}<span class="text-xs bg-dark-700 px-2 py-0.5 rounded">{{.CarClass}}</span>{{end}}
+                    {{if .CarClass}}<span class="text-xs bg-gray-100 px-2 py-0.5 rounded">{{.CarClass}}</span>{{end}}
                 </td>
                 <td class="px-4 py-3 text-gray-500">{{.TireBrand}} {{.TireModel}}</td>
-                <td class="px-4 py-3 font-mono font-semibold text-green-400">{{.BestLapTime}}</td>
+                <td class="px-4 py-3 font-mono font-semibold text-green-700">{{.BestLapTime}}</td>
                 <td class="px-4 py-3 text-gray-500">{{.UploadedAt.Format "Jan 2, 2006"}}</td>
             </tr>
             {{end}}
@@ -93,9 +93,9 @@
     </table>
 </div>
 {{else}}
-<div class="bg-dark-800 rounded-lg shadow-lg shadow-black/20 p-8 text-center text-gray-500">
+<div class="bg-white rounded-lg shadow p-8 text-center text-gray-500">
     <p class="text-lg mb-2">No sessions uploaded yet.</p>
-    <p>Be the first to <a href="/upload" class="text-brand-500 hover:underline">upload a VBO file</a>!</p>
+    <p>Be the first to <a href="/upload" class="text-red-600 hover:underline">upload a VBO file</a>!</p>
 </div>
 {{end}}
 {{end}}
