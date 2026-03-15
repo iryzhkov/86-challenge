@@ -1,0 +1,4 @@
+.env
+*.vbo
+/uploads/
+/86-challenge

@@ -1,0 +1,38 @@
+{{template "base" .}}
+{{define "content"}}
+<h1 class="text-2xl font-bold text-gray-900 mb-6">Events</h1>
+
+{{if .Events}}
+<div class="bg-white rounded-lg shadow overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-600 text-left">
+            <tr>
+                <th class="px-4 py-3">Event</th>
+                <th class="px-4 py-3">Track</th>
+                <th class="px-4 py-3">Date</th>
+                <th class="px-4 py-3">Organizer</th>
+                <th class="px-4 py-3">Weather</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {{range .Events}}
+            <tr class="hover:bg-gray-50 cursor-pointer" onclick="window.location='/event/{{.ID}}'">
+                <td class="px-4 py-3 font-medium">{{.Name}}</td>
+                <td class="px-4 py-3">{{.TrackName}} {{.TrackConfig}}</td>
+                <td class="px-4 py-3 text-gray-500">{{.Date.Format "Jan 2, 2006"}}</td>
+                <td class="px-4 py-3 text-gray-500">{{.Organizer}}</td>
+                <td class="px-4 py-3 text-gray-500">
+                    {{if .WeatherConditions}}{{.WeatherConditions}}{{end}}
+                    {{if .WeatherTempF}} {{printf "%.0f" .WeatherTempF}}°F{{end}}
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{else}}
+<div class="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+    <p>No events found. Run the scraper to import events from 86challenge.us.</p>
+</div>
+{{end}}
+{{end}}

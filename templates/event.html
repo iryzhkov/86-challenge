@@ -1,0 +1,75 @@
+{{template "base" .}}
+{{define "content"}}
+{{with .Event}}
+<div class="mb-6 flex items-start justify-between">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">{{.Name}}</h1>
+        <div class="text-gray-500 text-sm mt-1 flex flex-wrap gap-4">
+            <span>{{.TrackName}} — {{.TrackConfig}}</span>
+            <span>{{.Date.Format "January 2, 2006"}}</span>
+            {{if .Organizer}}<span>Organized by {{.Organizer}}</span>{{end}}
+        </div>
+        {{if .WeatherConditions}}
+        <div class="mt-2 text-sm text-gray-600 flex flex-wrap gap-4">
+            <span>{{.WeatherConditions}}</span>
+            {{if .WeatherTempF}}<span>{{printf "%.0f" .WeatherTempF}}°F</span>{{end}}
+            {{if .WeatherHumidity}}<span>{{printf "%.0f" .WeatherHumidity}}% humidity</span>{{end}}
+            {{if .WeatherWindMph}}<span>{{printf "%.0f" .WeatherWindMph}} mph wind</span>{{end}}
+        </div>
+        {{end}}
+    </div>
+    <a href="/upload?event={{.ID}}" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 text-sm whitespace-nowrap">
+        Upload Session
+    </a>
+</div>
+{{end}}
+
+{{if .Classes}}
+{{range .Classes}}
+<div class="mb-8">
+    <h2 class="text-lg font-semibold text-gray-800 mb-3">{{.Name}} Class</h2>
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-gray-600 text-left">
+                <tr>
+                    <th class="px-4 py-3 w-12">#</th>
+                    <th class="px-4 py-3">Driver</th>
+                    <th class="px-4 py-3">Car</th>
+                    <th class="px-4 py-3">Tires</th>
+                    <th class="px-4 py-3">Best Lap</th>
+                    <th class="px-4 py-3">Temp</th>
+                    {{range $i := $.SplitRange}}
+                    <th class="px-4 py-3">S{{add $i 1}}</th>
+                    {{end}}
+                    <th class="px-4 py-3"></th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {{range .Entries}}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-2 text-gray-500 font-medium">{{.Rank}}</td>
+                    <td class="px-4 py-2 font-medium cursor-pointer" onclick="window.location='/session/{{.SessionID}}'">{{.DriverName}}</td>
+                    <td class="px-4 py-2">{{.CarModel}}</td>
+                    <td class="px-4 py-2 text-gray-500">{{.TireBrand}} {{.TireModel}}</td>
+                    <td class="px-4 py-2 font-mono font-semibold text-green-700">{{.BestLap}}</td>
+                    <td class="px-4 py-2 text-gray-500 text-xs">{{if .TempF}}{{printf "%.0f" .TempF}}°F{{end}}</td>
+                    {{range .Splits}}
+                    <td class="px-4 py-2 font-mono text-gray-600">{{.}}</td>
+                    {{end}}
+                    <td class="px-4 py-2">
+                        <button class="text-xs text-blue-600 hover:underline" data-compare-lap="{{.LapID}}" onclick="addToCompare({{.LapID}})">Compare</button>
+                    </td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+</div>
+{{end}}
+{{else}}
+<div class="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+    <p class="mb-2">No sessions uploaded for this event yet.</p>
+    <a href="/upload?event={{.Event.ID}}" class="text-red-600 hover:underline">Upload the first session</a>
+</div>
+{{end}}
+{{end}}

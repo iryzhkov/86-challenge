@@ -1,0 +1,86 @@
+{{template "base" .}}
+{{define "content"}}
+<div class="mb-8">
+    <h1 class="text-3xl font-bold text-gray-900 mb-2">86 Challenge Telemetry</h1>
+    <p class="text-gray-600">Upload RaceChrono VBO files, compare laps, track your progress.</p>
+</div>
+
+{{if .CurrentEvent}}
+<div class="bg-red-50 border border-red-200 rounded-lg p-6 mb-8">
+    <div class="flex items-center justify-between">
+        <div>
+            <p class="text-red-700 text-sm font-semibold uppercase tracking-wide">Current Event</p>
+            <h2 class="text-xl font-bold text-gray-900 mt-1">{{.CurrentEvent.Name}}</h2>
+            <p class="text-gray-600">{{.CurrentEvent.TrackName}} {{.CurrentEvent.TrackConfig}} &mdash; {{.CurrentEvent.Date.Format "Jan 2, 2006"}}</p>
+            {{if .CurrentEvent.WeatherConditions}}
+            <p class="text-gray-500 text-sm">{{.CurrentEvent.WeatherConditions}} {{printf "%.0f" .CurrentEvent.WeatherTempF}}°F</p>
+            {{end}}
+        </div>
+        <div class="flex gap-3">
+            <a href="/event/{{.CurrentEvent.ID}}" class="bg-white text-gray-800 px-4 py-2 rounded-lg border hover:bg-gray-50">View</a>
+            <a href="/upload?event={{.CurrentEvent.ID}}" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">Upload Session</a>
+        </div>
+    </div>
+</div>
+{{end}}
+
+<div class="flex gap-4 mb-8">
+    <a href="/upload" class="bg-red-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-red-700 transition">
+        Upload Session
+    </a>
+    <a href="/leaderboard" class="bg-gray-200 text-gray-800 px-6 py-3 rounded-lg font-medium hover:bg-gray-300 transition">
+        Leaderboard
+    </a>
+</div>
+
+{{if .UpcomingEvents}}
+<h2 class="text-xl font-semibold text-gray-800 mb-4">Upcoming Events</h2>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+    {{range .UpcomingEvents}}
+    <a href="/event/{{.ID}}" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
+        <p class="font-semibold text-gray-900">{{.Name}}</p>
+        <p class="text-sm text-gray-500">{{.TrackName}} {{.TrackConfig}}</p>
+        <p class="text-sm text-gray-400 mt-1">{{.Date.Format "Jan 2, 2006"}}{{if .Organizer}} &mdash; {{.Organizer}}{{end}}</p>
+    </a>
+    {{end}}
+</div>
+{{end}}
+
+<h2 class="text-xl font-semibold text-gray-800 mb-4">Recent Uploads</h2>
+{{if .RecentSessions}}
+<div class="bg-white rounded-lg shadow overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-600 text-left">
+            <tr>
+                <th class="px-4 py-3">Driver</th>
+                <th class="px-4 py-3">Track</th>
+                <th class="px-4 py-3">Car</th>
+                <th class="px-4 py-3">Tires</th>
+                <th class="px-4 py-3">Best Lap</th>
+                <th class="px-4 py-3">Date</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {{range .RecentSessions}}
+            <tr class="hover:bg-gray-50 cursor-pointer" onclick="window.location='/session/{{.ID}}'">
+                <td class="px-4 py-3 font-medium">{{.DriverName}}</td>
+                <td class="px-4 py-3">{{.TrackName}} {{.TrackConfig}}</td>
+                <td class="px-4 py-3">
+                    {{.CarModel}}
+                    {{if .CarClass}}<span class="text-xs bg-gray-100 px-2 py-0.5 rounded">{{.CarClass}}</span>{{end}}
+                </td>
+                <td class="px-4 py-3 text-gray-500">{{.TireBrand}} {{.TireModel}}</td>
+                <td class="px-4 py-3 font-mono font-semibold text-green-700">{{.BestLapTime}}</td>
+                <td class="px-4 py-3 text-gray-500">{{.UploadedAt.Format "Jan 2, 2006"}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{else}}
+<div class="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+    <p class="text-lg mb-2">No sessions uploaded yet.</p>
+    <p>Be the first to <a href="/upload" class="text-red-600 hover:underline">upload a VBO file</a>!</p>
+</div>
+{{end}}
+{{end}}

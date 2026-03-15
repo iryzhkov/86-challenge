@@ -1,0 +1,381 @@
+{{template "base" .}}
+{{define "content"}}
+<h1 class="text-2xl font-bold text-gray-900 mb-6">Lap Comparison</h1>
+
+{{if .Laps}}
+<!-- Lap Legend -->
+<div class="flex flex-wrap gap-4 mb-6">
+    {{range .Laps}}
+    <a href="/session/{{.SessionID}}" class="flex items-center gap-2 bg-white rounded-lg shadow px-4 py-2 hover:shadow-md transition">
+        <div class="w-4 h-4 rounded" style="background-color: {{.Color}}"></div>
+        <span class="font-medium">{{.DriverName}}</span>
+        <span class="text-gray-500 text-sm">{{.CarModel}}</span>
+        <span class="font-mono font-semibold">{{.LapTime}}</span>
+    </a>
+    {{end}}
+</div>
+
+<!-- Track Map + Time Delta (side by side) -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8" style="min-height: 350px;">
+    <div class="bg-white rounded-lg shadow p-4 flex flex-col">
+        <h2 class="text-lg font-semibold mb-3">Track Map</h2>
+        <div id="map" class="rounded-lg flex-1" style="min-height: 300px;"></div>
+    </div>
+    <div class="bg-white rounded-lg shadow p-4">
+        <h2 class="text-lg font-semibold mb-3">Time Delta vs {{(index .Laps 0).DriverName}}</h2>
+        <canvas id="chart-delta"></canvas>
+    </div>
+</div>
+
+<!-- Sector Zoom -->
+<div id="sector-buttons" class="flex gap-2 mb-4 hidden">
+    <button onclick="zoomSector(-1)" class="px-3 py-1 rounded text-sm bg-gray-800 text-white hover:bg-gray-900">Full Lap</button>
+</div>
+
+<!-- Channel Comparison -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-16">
+    <div class="bg-white rounded-lg shadow p-4">
+        <h3 class="text-sm font-semibold text-gray-600 mb-2">Speed (km/h)</h3>
+        <canvas id="chart-speed" height="200"></canvas>
+    </div>
+    <div class="bg-white rounded-lg shadow p-4">
+        <h3 class="text-sm font-semibold text-gray-600 mb-2">RPM</h3>
+        <canvas id="chart-rpm" height="200"></canvas>
+    </div>
+    <div class="bg-white rounded-lg shadow p-4">
+        <h3 class="text-sm font-semibold text-gray-600 mb-2">Throttle (%)</h3>
+        <canvas id="chart-throttle" height="200"></canvas>
+    </div>
+    <div class="bg-white rounded-lg shadow p-4">
+        <h3 class="text-sm font-semibold text-gray-600 mb-2">Brake (%)</h3>
+        <canvas id="chart-brake" height="200"></canvas>
+    </div>
+</div>
+
+<script>
+let mapPositionMarkers = [];
+let syncingCharts = false; // prevent infinite recursion
+
+// Crosshair plugin — draws vertical line, syncs all charts, updates map
+const crosshairPlugin = {
+    id: 'crosshair',
+    afterDraw(chart) {
+        // Draw crosshair line from synced position or active tooltip
+        const xPixel = chart._syncX;
+        const activeX = chart.tooltip?._active?.length ? chart.tooltip._active[0].element.x : null;
+        const drawX = xPixel || activeX;
+        if (!drawX) return;
+
+        const yAxis = chart.scales.y;
+        const ctx = chart.ctx;
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(drawX, yAxis.top);
+        ctx.lineTo(drawX, yAxis.bottom);
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+        ctx.stroke();
+        ctx.restore();
+    },
+    afterEvent(chart, args) {
+        if (syncingCharts) return;
+        const evt = args.event;
+        if (evt.type !== 'mousemove' && evt.type !== 'mouseout') return;
+
+        if (evt.type === 'mouseout') {
+            // Clear all synced charts
+            syncingCharts = true;
+            (window.allCompareCharts || []).forEach(c => {
+                if (c === chart) return;
+                c._syncX = null;
+                c.tooltip?.setActiveElements([], {x: 0, y: 0});
+                c.update('none');
+            });
+            syncingCharts = false;
+            return;
+        }
+
+        if (!chart.tooltip?._active?.length) return;
+        const active = chart.tooltip._active[0];
+        const distVal = chart.data.datasets[0]?.data[active.index]?.x;
+        if (distVal == null) return;
+
+        // Sync other charts to same distance value
+        syncingCharts = true;
+        (window.allCompareCharts || []).forEach(c => {
+            if (c === chart) return;
+            // Find the data index closest to this distance
+            const ds = c.data.datasets[0]?.data;
+            if (!ds || ds.length === 0) return;
+            let bestIdx = 0, bestDiff = Infinity;
+            for (let i = 0; i < ds.length; i++) {
+                const diff = Math.abs(ds[i].x - distVal);
+                if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
+            }
+            // Set tooltip and crosshair position
+            const elements = c.data.datasets.map((_, dsi) => ({datasetIndex: dsi, index: bestIdx}));
+            c.tooltip?.setActiveElements(elements, {x: 0, y: 0});
+            c._syncX = c.scales.x.getPixelForValue(ds[bestIdx].x);
+            c.update('none');
+        });
+        syncingCharts = false;
+
+        // Update map position markers
+        if (!window.lapDistCoords) return;
+        mapPositionMarkers.forEach((m, li) => {
+            const dc = window.lapDistCoords[li];
+            if (!dc) return;
+            let lo = 0, hi = dc.length - 1;
+            while (lo < hi) {
+                const mid = (lo + hi) >> 1;
+                if (dc[mid].d < distVal) lo = mid + 1; else hi = mid;
+            }
+            m.setLatLng([dc[lo].lat, dc[lo].lon]);
+        });
+    }
+};
+
+// Sector striping plugin — alternating bands at split distances
+const sectorPlugin = {
+    id: 'sectors',
+    beforeDraw(chart) {
+        const splitDists = chart.options.plugins.sectors?.splitDists;
+        if (!splitDists || splitDists.length === 0) return;
+        const xScale = chart.scales.x;
+        const yAxis = chart.scales.y;
+        const ctx = chart.ctx;
+        ctx.save();
+        const bounds = [0, ...splitDists, xScale.max];
+        for (let i = 0; i < bounds.length - 1; i++) {
+            if (i % 2 === 1) {
+                const x1 = xScale.getPixelForValue(bounds[i]);
+                const x2 = xScale.getPixelForValue(bounds[i + 1]);
+                ctx.fillStyle = 'rgba(0,0,0,0.04)';
+                ctx.fillRect(x1, yAxis.top, x2 - x1, yAxis.bottom - yAxis.top);
+            }
+        }
+        ctx.restore();
+    }
+};
+
+Chart.register(crosshairPlugin, sectorPlugin);
+
+const lapMeta = [
+    {{range .Laps}}
+    {id: {{.LapID}}, sessionId: "{{.SessionID}}", driver: "{{.DriverName}}", color: "{{.Color}}", timeMs: {{.LapTimeMs}}, splits: [{{range .SplitTimes}}{{.}},{{end}}]},
+    {{end}}
+];
+
+Promise.all(lapMeta.map(m => fetch('/api/telemetry/' + m.id).then(r => r.json())))
+    .then(allData => {
+        // Track map — fills its container
+        const map = L.map('map');
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap'
+        }).addTo(map);
+
+        let allBounds = [];
+        allData.forEach((data, i) => {
+            if (!data.lats || data.lats.length === 0) return;
+            const coords = data.lats.map((lat, j) => [lat, data.lons[j]]);
+            L.polyline(coords, {color: lapMeta[i].color, weight: 3, opacity: 0.8}).addTo(map);
+            allBounds.push(...coords);
+        });
+        if (allBounds.length > 0) map.fitBounds(L.latLngBounds(allBounds).pad(0.05));
+
+        // Position markers (one per lap)
+        allData.forEach((data, i) => {
+            if (!data.lats || data.lats.length === 0) return;
+            mapPositionMarkers.push(L.circleMarker([data.lats[0], data.lons[0]], {
+                radius: 6, color: lapMeta[i].color, fillColor: lapMeta[i].color, fillOpacity: 1, weight: 2
+            }).addTo(map));
+        });
+
+        // Build distance→coords lookup for each lap (for same-distance map sync)
+        window.lapDistCoords = allData.map(data => {
+            return data.distances.map((d, i) => ({d, lat: data.lats[i], lon: data.lons[i]}));
+        });
+
+        // Reference lap (fastest)
+        const refData = allData[0];
+        const step = Math.max(1, Math.floor(refData.distances.length / 500));
+
+        // Build {x: distance, y: value} datasets (linear x-axis)
+        function sampleXY(data, channel) {
+            const arr = data[channel];
+            const srcDist = data.distances;
+            if (!arr) return [];
+            const result = [];
+            let si = 0;
+            for (let i = 0; i < refData.distances.length; i += step) {
+                const targetD = refData.distances[i];
+                while (si < srcDist.length - 1 && srcDist[si] < targetD) si++;
+                result.push({x: Math.round(targetD), y: arr[si] || 0});
+            }
+            return result;
+        }
+
+        // Compute split boundary distances
+        const refSplits = lapMeta[0].splits;
+        const splitDists = [];
+        if (refSplits.length > 0) {
+            let cumMs = 0;
+            for (let s = 0; s < refSplits.length - 1; s++) {
+                cumMs += refSplits[s];
+                let cumT = 0;
+                for (let i = 1; i < refData.distances.length; i++) {
+                    const dd = refData.distances[i] - refData.distances[i-1];
+                    const spd = refData.speeds[i] / 3.6;
+                    if (spd > 0) cumT += dd / spd * 1000;
+                    if (cumT >= cumMs) { splitDists.push(Math.round(refData.distances[i])); break; }
+                }
+            }
+        }
+
+        const chartOpts = {
+            responsive: true,
+            animation: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: true, position: 'top' },
+                tooltip: {
+                    mode: 'index', intersect: false,
+                    callbacks: { title: (items) => items[0] ? `${items[0].parsed.x}m` : '' }
+                },
+                sectors: { splitDists }
+            },
+            scales: {
+                x: { type: 'linear', display: true, title: { display: true, text: 'Distance (m)' },
+                     ticks: { maxTicksLimit: 8 } },
+                y: { beginAtZero: true }
+            },
+            elements: { point: { radius: 0 }, line: { borderWidth: 1.5 } }
+        };
+
+        // Create all charts with linear x-axis
+        const allCharts = [];
+        window.allCompareCharts = allCharts;
+        function makeChart(id, channel) {
+            const c = new Chart(id, {
+                type: 'scatter',
+                data: { datasets: allData.map((d, i) => ({
+                    data: sampleXY(d, channel),
+                    borderColor: lapMeta[i].color,
+                    label: lapMeta[i].driver,
+                    fill: false, showLine: true
+                }))},
+                options: JSON.parse(JSON.stringify(chartOpts))
+            });
+            allCharts.push(c);
+            return c;
+        }
+
+        makeChart('chart-speed', 'speeds');
+        makeChart('chart-rpm', 'rpms');
+        makeChart('chart-throttle', 'throttle');
+        makeChart('chart-brake', 'brake');
+
+        // Sector zoom
+        const maxDist = Math.round(refData.distances[refData.distances.length - 1]);
+        const sectorBounds = [0, ...splitDists, maxDist];
+
+        if (splitDists.length > 0) {
+            const btnContainer = document.getElementById('sector-buttons');
+            btnContainer.classList.remove('hidden');
+            for (let s = 0; s < sectorBounds.length - 1; s++) {
+                const btn = document.createElement('button');
+                btn.textContent = 'S' + (s + 1);
+                btn.className = 'px-3 py-1 rounded text-sm bg-gray-200 text-gray-800 hover:bg-gray-300';
+                btn.onclick = () => zoomSector(s);
+                btnContainer.appendChild(btn);
+            }
+        }
+
+        window.zoomSector = function(sectorIdx) {
+            const zoom = (c) => {
+                if (sectorIdx < 0) {
+                    delete c.options.scales.x.min;
+                    delete c.options.scales.x.max;
+                } else {
+                    c.options.scales.x.min = sectorBounds[sectorIdx];
+                    c.options.scales.x.max = sectorBounds[sectorIdx + 1];
+                }
+                c.update();
+            };
+            allCharts.forEach(zoom);
+            if (window.deltaChart) zoom(window.deltaChart);
+
+            document.querySelectorAll('#sector-buttons button').forEach((b, i) => {
+                b.className = ((sectorIdx < 0 && i === 0) || (sectorIdx >= 0 && i === sectorIdx + 1))
+                    ? 'px-3 py-1 rounded text-sm bg-gray-800 text-white'
+                    : 'px-3 py-1 rounded text-sm bg-gray-200 text-gray-800 hover:bg-gray-300';
+            });
+        };
+
+        // Time delta (distance-based x-axis)
+        if (allData.length >= 2) {
+            function cumTimeAtDist(data) {
+                const result = [];
+                let cumT = 0;
+                for (let i = 0; i < data.distances.length; i++) {
+                    if (i > 0 && data.speeds[i] > 0) {
+                        const dd = data.distances[i] - data.distances[i-1];
+                        cumT += dd / (data.speeds[i] / 3.6) * 1000;
+                    }
+                    result.push({dist: data.distances[i], time: cumT});
+                }
+                return result;
+            }
+
+            const ref = cumTimeAtDist(allData[0]);
+            const deltaDatasets = [];
+
+            for (let li = 1; li < allData.length; li++) {
+                const comp = cumTimeAtDist(allData[li]);
+                const rawPoints = [];
+                let ci = 0;
+                for (let i = 0; i < refData.distances.length; i += step) {
+                    const d = refData.distances[i];
+                    while (ci < comp.length - 1 && comp[ci].dist < d) ci++;
+                    let ri = 0;
+                    while (ri < ref.length - 1 && ref[ri].dist < d) ri++;
+                    rawPoints.push({x: Math.round(d), y: (comp[ci].time - ref[ri].time) / 1000});
+                }
+                // Smooth
+                const win = 15;
+                const smoothed = rawPoints.map((p, i) => {
+                    const lo = Math.max(0, i - Math.floor(win/2));
+                    const hi = Math.min(rawPoints.length, i + Math.ceil(win/2));
+                    let sum = 0;
+                    for (let k = lo; k < hi; k++) sum += rawPoints[k].y;
+                    return {x: p.x, y: Math.round((sum / (hi - lo)) * 1000) / 1000};
+                });
+                deltaDatasets.push({
+                    data: smoothed,
+                    borderColor: lapMeta[li].color,
+                    label: lapMeta[li].driver + ' vs ' + lapMeta[0].driver,
+                    fill: false, showLine: true
+                });
+            }
+
+            const deltaOpts = JSON.parse(JSON.stringify(chartOpts));
+            deltaOpts.scales.y = { beginAtZero: false, title: { display: true, text: 'Seconds (+ = slower)' } };
+
+            window.deltaChart = new Chart('chart-delta', {
+                type: 'scatter', data: { datasets: deltaDatasets }, options: deltaOpts
+            });
+            allCharts.push(window.deltaChart);
+        }
+
+        // Invalidate map size after layout settles
+        setTimeout(() => map.invalidateSize(), 200);
+    });
+</script>
+
+{{else}}
+<div class="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+    <p class="text-lg mb-2">Select laps to compare.</p>
+    <p>Use the session or event page to pick laps with the Compare button.</p>
+</div>
+{{end}}
+{{end}}

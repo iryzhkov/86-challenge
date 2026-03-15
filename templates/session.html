@@ -1,0 +1,257 @@
+{{template "base" .}}
+{{define "content"}}
+{{with .Session}}
+<div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-900">{{.DriverName}} — {{.TrackName}} {{.TrackConfig}}</h1>
+    <div class="text-gray-500 text-sm mt-1 flex flex-wrap gap-4">
+        <span>{{.CarModel}} ({{.CarGeneration}})</span>
+        {{if .CarClass}}<span class="bg-gray-100 px-2 py-0.5 rounded">{{.CarClass}}</span>{{end}}
+        {{if .TireBrand}}<span>{{.TireBrand}} {{.TireModel}}</span>{{end}}
+        <span>Uploaded {{.UploadedAt.Format "Jan 2, 2006 3:04 PM"}}</span>
+        <a href="/session/download/{{.ID}}" class="text-blue-600 hover:underline text-sm">Download VBO</a>
+    </div>
+</div>
+{{end}}
+
+{{if .Event}}
+<div class="mb-4">
+    <a href="/event/{{.Event.ID}}" class="text-blue-600 hover:underline text-sm">
+        &larr; {{.Event.Name}} ({{.Event.Date.Format "Jan 2, 2006"}})
+    </a>
+</div>
+{{end}}
+
+<!-- Lap Tables (grouped by session) -->
+{{range .SessionBlocks}}
+<div class="mb-6">
+    {{if $.HasMultiple}}
+    <div class="flex items-center gap-3 mb-2">
+        <h3 class="text-sm font-semibold text-gray-600">{{.Label}}</h3>
+        {{if .IsCurrent}}<span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">viewing</span>{{end}}
+        <button onclick="confirmDelete('{{.Session.ID}}')" class="text-xs text-red-400 hover:text-red-600 ml-auto">Delete</button>
+    </div>
+    {{end}}
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-gray-600 text-left">
+                <tr>
+                    <th class="px-4 py-3 w-16">Lap</th>
+                    <th class="px-4 py-3">Time</th>
+                    {{if $.NumSplits}}
+                    {{range $.SplitHeaders}}
+                    <th class="px-4 py-3">{{.}}</th>
+                    {{end}}
+                    {{end}}
+                    <th class="px-4 py-3">Temp</th>
+                    <th class="px-4 py-3">Status</th>
+                    <th class="px-4 py-3"></th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {{range .Laps}}
+                <tr class="{{if not .IsValid}}lap-invalid{{end}} {{.LapClass}} hover:bg-gray-50 cursor-pointer lap-row"
+                    data-lap-id="{{.ID}}"
+                    onclick="loadLapTelemetry({{.ID}}, {{.LapNumber}})">
+                    <td class="px-4 py-2 text-gray-500">{{.LapNumber}}</td>
+                    <td class="px-4 py-2 font-mono font-semibold">{{.LapTimeFormatted}}</td>
+                    {{range .Splits}}
+                    <td class="px-4 py-2 font-mono {{.Class}}">{{.Value}}</td>
+                    {{end}}
+                    <td class="px-4 py-2 text-gray-500 text-xs">{{if .AmbientTempF}}{{printf "%.0f" .AmbientTempF}}°F{{end}}</td>
+                    <td class="px-4 py-2 text-xs">
+                        {{if .IsOutlap}}<span class="text-orange-500">OUT</span>
+                        {{else if .IsInlap}}<span class="text-orange-500">IN</span>
+                        {{else if not .IsValid}}<span class="text-red-500">Invalid</span>
+                        {{else}}<span class="text-green-600">Valid</span>
+                        {{end}}
+                    </td>
+                    <td class="px-4 py-2">
+                        <button class="text-xs text-blue-600 hover:underline" data-compare-lap="{{.ID}}" onclick="event.stopPropagation(); addToCompare({{.ID}})">Compare</button>
+                    </td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+</div>
+{{end}}
+
+<!-- Track Map -->
+<div class="bg-white rounded-lg shadow p-4 mb-8">
+    <h2 class="text-lg font-semibold mb-3" id="map-title">Track Map — <span id="map-lap-label">Best Lap</span></h2>
+    <div id="map" style="height: 450px; max-width: 700px;" class="rounded-lg mx-auto"></div>
+</div>
+
+<!-- Telemetry Charts -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-20">
+    <div class="bg-white rounded-lg shadow p-4">
+        <h3 class="text-sm font-semibold text-gray-600 mb-2">Speed (km/h)</h3>
+        <canvas id="chart-speed" height="200"></canvas>
+    </div>
+    <div class="bg-white rounded-lg shadow p-4">
+        <h3 class="text-sm font-semibold text-gray-600 mb-2">RPM</h3>
+        <canvas id="chart-rpm" height="200"></canvas>
+    </div>
+    <div class="bg-white rounded-lg shadow p-4">
+        <h3 class="text-sm font-semibold text-gray-600 mb-2">Brake / Throttle (%)</h3>
+        <canvas id="chart-pedals" height="200"></canvas>
+    </div>
+    <div class="bg-white rounded-lg shadow p-4">
+        <h3 class="text-sm font-semibold text-gray-600 mb-2">G-Forces</h3>
+        <canvas id="chart-gforce" height="200"></canvas>
+    </div>
+</div>
+
+<script>
+// Chart.js crosshair plugin
+const crosshairPlugin = {
+    id: 'crosshair',
+    afterDraw(chart) {
+        if (chart.tooltip?._active?.length) {
+            const x = chart.tooltip._active[0].element.x;
+            const yAxis = chart.scales.y;
+            const ctx = chart.ctx;
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(x, yAxis.top);
+            ctx.lineTo(x, yAxis.bottom);
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+            ctx.stroke();
+            ctx.restore();
+        }
+    }
+};
+Chart.register(crosshairPlugin);
+
+const defaultChartOpts = {
+    responsive: true,
+    animation: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+        legend: { display: false },
+        tooltip: {
+            mode: 'index', intersect: false,
+            callbacks: {
+                title: (items) => items[0] ? `Distance: ${items[0].label}m` : '',
+            }
+        }
+    },
+    scales: {
+        x: { display: false },
+        y: { beginAtZero: true }
+    },
+    elements: { point: { radius: 0 }, line: { borderWidth: 1.5 } }
+};
+
+let mapInstance = null;
+let mapLayer = null;
+let charts = {};
+
+function loadLapTelemetry(lapId, lapNum) {
+    document.getElementById('map-lap-label').textContent = 'Lap ' + lapNum;
+    // Highlight selected row
+    document.querySelectorAll('.lap-row').forEach(r => r.classList.remove('lap-selected'));
+    const row = document.querySelector(`[data-lap-id="${lapId}"]`);
+    if (row) row.classList.add('lap-selected');
+
+    fetch('/api/telemetry/' + lapId)
+        .then(r => r.json())
+        .then(data => {
+            if (!data.lats || data.lats.length === 0) return;
+
+            // Map
+            const coords = data.lats.map((lat, i) => [lat, data.lons[i]]);
+            if (!mapInstance) {
+                mapInstance = L.map('map').setView(coords[Math.floor(coords.length/2)], 15);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; OpenStreetMap'
+                }).addTo(mapInstance);
+            }
+            if (mapLayer) mapInstance.removeLayer(mapLayer);
+            const maxSpd = Math.max(...data.speeds);
+            const segments = [];
+            for (let i = 0; i < coords.length - 1; i++) {
+                const ratio = data.speeds[i] / maxSpd;
+                const r = Math.round(255 * (1 - ratio));
+                const g = Math.round(255 * ratio);
+                segments.push(L.polyline([coords[i], coords[i+1]], {
+                    color: `rgb(${r},${g},0)`, weight: 3, opacity: 0.8
+                }));
+            }
+            mapLayer = L.layerGroup(segments).addTo(mapInstance);
+            mapInstance.fitBounds(L.polyline(coords).getBounds().pad(0.05));
+
+            // Subsample
+            const step = Math.max(1, Math.floor(data.distances.length / 500));
+            const dist = [], spd = [], rpm = [], brk = [], thr = [], latg = [], longg = [];
+            for (let i = 0; i < data.distances.length; i += step) {
+                dist.push(Math.round(data.distances[i]));
+                spd.push(data.speeds[i]);
+                rpm.push(data.rpms[i]);
+                brk.push(data.brake[i]);
+                thr.push(data.throttle[i]);
+                latg.push(data.latG[i]);
+                longg.push(data.longG[i]);
+            }
+
+            // Destroy old charts
+            Object.values(charts).forEach(c => c.destroy());
+
+            charts.speed = new Chart('chart-speed', {
+                type: 'line',
+                data: { labels: dist, datasets: [{ data: spd, borderColor: '#2563eb', fill: false }]},
+                options: {...defaultChartOpts}
+            });
+
+            charts.rpm = new Chart('chart-rpm', {
+                type: 'line',
+                data: { labels: dist, datasets: [{ data: rpm, borderColor: '#dc2626', fill: false }]},
+                options: {...defaultChartOpts}
+            });
+
+            charts.pedals = new Chart('chart-pedals', {
+                type: 'line',
+                data: { labels: dist, datasets: [
+                    { data: thr, borderColor: '#16a34a', fill: false, label: 'Throttle' },
+                    { data: brk, borderColor: '#dc2626', fill: false, label: 'Brake' }
+                ]},
+                options: {...defaultChartOpts, plugins: { ...defaultChartOpts.plugins, legend: { display: true, position: 'top' } }}
+            });
+
+            charts.gforce = new Chart('chart-gforce', {
+                type: 'line',
+                data: { labels: dist, datasets: [
+                    { data: latg, borderColor: '#7c3aed', fill: false, label: 'Lateral' },
+                    { data: longg, borderColor: '#ea580c', fill: false, label: 'Longitudinal' }
+                ]},
+                options: {
+                    ...defaultChartOpts,
+                    plugins: { ...defaultChartOpts.plugins, legend: { display: true, position: 'top' } },
+                    scales: { x: { display: false }, y: { beginAtZero: false } }
+                }
+            });
+        });
+}
+
+// Load best lap on page load
+{{if .BestLapID}}
+loadLapTelemetry({{.BestLapID}}, 'Best');
+{{end}}
+
+function confirmDelete(sessionId) {
+    if (confirm('Are you sure you want to delete this session?\n\nWARNING: Only delete your own sessions. Deleting someone else\'s session cannot be undone.')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/session/delete';
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'session_id';
+        input.value = sessionId;
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>
+{{end}}

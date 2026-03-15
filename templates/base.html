@@ -1,0 +1,104 @@
+{{define "base"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>86 Challenge Telemetry</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+        .lap-valid { }
+        .lap-invalid { opacity: 0.5; }
+        .lap-best { background-color: #ecfdf5; } /* green - session best */
+        .lap-best td:nth-child(2) { color: #15803d; font-weight: 700; }
+        .lap-pb { background-color: #f5f3ff; } /* purple - track PB */
+        .lap-pb td:nth-child(2) { color: #7c3aed; font-weight: 700; }
+        .lap-selected { background-color: #eff6ff !important; } /* blue - currently viewing */
+        .split-pb { color: #7c3aed; font-weight: 700; } /* purple bold - track PB split */
+        .split-event { color: #15803d; font-weight: 600; } /* green - event best split */
+        .leaflet-pane, .leaflet-top, .leaflet-bottom,
+        .leaflet-control { z-index: 30 !important; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <nav class="bg-gray-900 text-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+            <a href="/" class="text-xl font-bold tracking-tight">
+                <span class="text-red-500">86</span> Challenge Telemetry
+            </a>
+            <div class="flex gap-6 text-sm">
+                <a href="/" class="hover:text-red-400">Home</a>
+                <a href="/upload" class="hover:text-red-400">Upload</a>
+                <a href="/events" class="hover:text-red-400">Events</a>
+                <a href="/sessions" class="hover:text-red-400">Sessions</a>
+                <a href="/leaderboard" class="hover:text-red-400">Leaderboard</a>
+            </div>
+        </div>
+    </nav>
+    <main class="max-w-7xl mx-auto px-4 py-6">
+        {{template "content" .}}
+    </main>
+    <!-- Compare bar (global, persisted via sessionStorage) -->
+    <div id="compare-bar" class="hidden fixed bottom-0 left-0 right-0 bg-gray-900 text-white p-3 flex items-center justify-between z-50">
+        <span id="compare-count">0 laps selected</span>
+        <div>
+            <button onclick="clearCompare()" class="text-gray-400 hover:text-white mr-4 text-sm">Clear</button>
+            <a id="compare-link" href="/compare" class="bg-red-600 px-4 py-2 rounded hover:bg-red-700">Compare Laps</a>
+        </div>
+    </div>
+
+    <script>
+    // Global compare selection — persisted in sessionStorage
+    let compareSet = new Set(JSON.parse(sessionStorage.getItem('compareLaps') || '[]'));
+
+    function addToCompare(lapId) {
+        if (compareSet.has(lapId)) {
+            compareSet.delete(lapId);
+        } else {
+            compareSet.add(lapId);
+        }
+        saveCompare();
+        updateCompareBar();
+    }
+    function clearCompare() {
+        compareSet.clear();
+        saveCompare();
+        updateCompareBar();
+    }
+    function saveCompare() {
+        sessionStorage.setItem('compareLaps', JSON.stringify([...compareSet]));
+    }
+    function updateCompareBar() {
+        const bar = document.getElementById('compare-bar');
+        const count = document.getElementById('compare-count');
+        const link = document.getElementById('compare-link');
+        if (compareSet.size > 0) {
+            bar.classList.remove('hidden');
+            count.textContent = compareSet.size + ' lap' + (compareSet.size > 1 ? 's' : '') + ' selected';
+            link.href = '/compare?laps=' + [...compareSet].join(',');
+        } else {
+            bar.classList.add('hidden');
+        }
+        // Update any compare buttons on the page
+        document.querySelectorAll('[data-compare-lap]').forEach(btn => {
+            const id = parseInt(btn.dataset.compareLap);
+            btn.textContent = compareSet.has(id) ? 'Remove' : 'Compare';
+            btn.classList.toggle('text-red-600', compareSet.has(id));
+            btn.classList.toggle('text-blue-600', !compareSet.has(id));
+        });
+    }
+    // Initialize on page load
+    updateCompareBar();
+    </script>
+
+    <footer class="text-center text-gray-400 text-xs py-4 mt-8 mb-12">
+        86 Challenge Telemetry &mdash; GR86 / BRZ / FR-S Time Trial Community
+    </footer>
+</body>
+</html>
+{{end}}
