@@ -246,7 +246,7 @@ Promise.all(lapMeta.map(m => fetch('/api/telemetry/' + m.id).then(r => r.json())
             },
             scales: {
                 x: { type: 'linear', display: true, title: { display: true, text: 'Distance (m)' },
-                     ticks: { maxTicksLimit: 8 }, max: maxDist },
+                     ticks: { maxTicksLimit: 8 } },
                 y: { beginAtZero: true }
             },
             elements: { point: { radius: 0 }, line: { borderWidth: 1.5 } }
@@ -275,9 +275,11 @@ Promise.all(lapMeta.map(m => fetch('/api/telemetry/' + m.id).then(r => r.json())
         makeChart('chart-throttle', 'throttle');
         makeChart('chart-brake', 'brake');
 
-        // Sector zoom
-        // Cap x-axis to the shortest lap's distance (all laps should be ~same length)
+        // Cap x-axis to the shortest lap's distance
         const maxDist = Math.min(...allData.map(d => Math.round(d.distances[d.distances.length - 1])));
+        allCharts.forEach(c => { c.options.scales.x.max = maxDist; c.update('none'); });
+
+        // Sector zoom
         const sectorBounds = [0, ...splitDists, maxDist];
 
         if (splitDists.length > 0) {
