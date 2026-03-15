@@ -395,53 +395,39 @@ Promise.all(lapMeta.map(m => fetch('/api/telemetry/' + m.id).then(r => r.json())
 // Official turn definitions per track (lat/lon of apex)
 const KNOWN_TURNS = {
     'Laguna Seca|Full': [
-        {num: 1,  name: 'T1',         lat: 36.5862, lon: -121.7556},
-        {num: 2,  name: 'T2 Andretti', lat: 36.5843, lon: -121.7540},
-        {num: 3,  name: 'T3',         lat: 36.5838, lon: -121.7531},
-        {num: 4,  name: 'T4',         lat: 36.5848, lon: -121.7507},
-        {num: 5,  name: 'T5',         lat: 36.5863, lon: -121.7488},
-        {num: 6,  name: 'T6',         lat: 36.5878, lon: -121.7450},
-        {num: 7,  name: 'T7',         lat: 36.5870, lon: -121.7413},
-        {num: 8,  name: 'T8 Corkscrew', lat: 36.5849, lon: -121.7396},
-        {num: 9,  name: 'T9 Rainey',  lat: 36.5835, lon: -121.7415},
-        {num: 10, name: 'T10',        lat: 36.5831, lon: -121.7453},
-        {num: 11, name: 'T11',        lat: 36.5845, lon: -121.7504},
+        {num: 1,  name: 'T1',           lat: 36.586291, lon: -121.756795}, // ~76m kink
+        {num: 2,  name: 'T2 Andretti',  lat: 36.582534, lon: -121.757504}, // ~520m hairpin
+        {num: 3,  name: 'T3',           lat: 36.582583, lon: -121.757065}, // ~562m exit right
+        {num: 4,  name: 'T4',           lat: 36.584670, lon: -121.756979}, // ~802m uphill left
+        {num: 5,  name: 'T5',           lat: 36.584323, lon: -121.753978}, // ~1097m downhill sweeper
+        {num: 6,  name: 'T6',           lat: 36.580511, lon: -121.754389}, // ~1534m fast right
+        {num: 7,  name: 'T7',           lat: 36.580311, lon: -121.750156}, // ~1958m before corkscrew
+        {num: 8,  name: 'T8 Corkscrew', lat: 36.584742, lon: -121.749022}, // ~2481m
+        {num: 9,  name: 'T9 Rainey',    lat: 36.586887, lon: -121.750180}, // ~2763m
+        {num: 10, name: 'T10',          lat: 36.586497, lon: -121.752594}, // ~2987m fast left
+        {num: 11, name: 'T11',          lat: 36.588625, lon: -121.754504}, // ~3292m last turn
     ],
-    'Sonoma Raceway|Long': [
-        {num: 1,  name: 'T1',  lat: 38.1621, lon: -122.4558},
-        {num: 2,  name: 'T2',  lat: 38.1617, lon: -122.4572},
-        {num: 3,  name: 'T3',  lat: 38.1632, lon: -122.4589},
-        {num: 3.5,name: 'T3a', lat: 38.1646, lon: -122.4598},
-        {num: 4,  name: 'T4',  lat: 38.1660, lon: -122.4614},
-        {num: 5,  name: 'T5',  lat: 38.1672, lon: -122.4624},
-        {num: 6,  name: 'T6',  lat: 38.1670, lon: -122.4637},
-        {num: 7,  name: 'T7',  lat: 38.1657, lon: -122.4637},
-        {num: 8,  name: 'T8',  lat: 38.1646, lon: -122.4614},
-        {num: 9,  name: 'T9',  lat: 38.1638, lon: -122.4588},
-        {num: 10, name: 'T10', lat: 38.1633, lon: -122.4568},
-        {num: 11, name: 'T11', lat: 38.1623, lon: -122.4545},
-    ],
+    // Sonoma: will be populated from telemetry data when available
     'Thunderhill|East Cyclone': [
-        {num: 1,  name: 'T1',  lat: 39.5393, lon: -122.3295},
-        {num: 2,  name: 'T2',  lat: 39.5416, lon: -122.3268},
-        {num: 3,  name: 'T3',  lat: 39.5443, lon: -122.3271},
-        {num: 4,  name: 'T4',  lat: 39.5449, lon: -122.3289},
-        {num: 5,  name: 'T5 Cyclone', lat: 39.5437, lon: -122.3316},
-        {num: 6,  name: 'T6',  lat: 39.5418, lon: -122.3338},
-        {num: 7,  name: 'T7',  lat: 39.5405, lon: -122.3358},
-        {num: 8,  name: 'T8',  lat: 39.5388, lon: -122.3355},
-        {num: 9,  name: 'T9',  lat: 39.5378, lon: -122.3330},
+        {num: 1,  name: 'T1',         lat: 39.537373, lon: -122.331246}, // ~200m first right
+        {num: 2,  name: 'T2',         lat: 39.535827, lon: -122.327451}, // ~600m left
+        {num: 3,  name: 'T3',         lat: 39.537928, lon: -122.329106}, // ~1000m right
+        {num: 4,  name: 'T4',         lat: 39.541066, lon: -122.329392}, // ~1400m hairpin
+        {num: 5,  name: 'T5 Cyclone', lat: 39.543117, lon: -122.328556}, // ~1700m cyclone
+        {num: 6,  name: 'T6',         lat: 39.542509, lon: -122.336283}, // ~2600m left
+        {num: 7,  name: 'T7',         lat: 39.539003, lon: -122.335554}, // ~3000m right
+        {num: 8,  name: 'T8',         lat: 39.538356, lon: -122.333360}, // ~3300m left
+        {num: 9,  name: 'T9',         lat: 39.543649, lon: -122.332836}, // ~3900m hairpin
     ],
     'Thunderhill|East Bypass': [
-        {num: 1,  name: 'T1',  lat: 39.5393, lon: -122.3295},
-        {num: 2,  name: 'T2',  lat: 39.5416, lon: -122.3268},
-        {num: 3,  name: 'T3',  lat: 39.5443, lon: -122.3271},
-        {num: 4,  name: 'T4',  lat: 39.5449, lon: -122.3289},
-        {num: 5,  name: 'T5',  lat: 39.5430, lon: -122.3300},
-        {num: 6,  name: 'T6',  lat: 39.5418, lon: -122.3338},
-        {num: 7,  name: 'T7',  lat: 39.5405, lon: -122.3358},
-        {num: 8,  name: 'T8',  lat: 39.5388, lon: -122.3355},
-        {num: 9,  name: 'T9',  lat: 39.5378, lon: -122.3330},
+        {num: 1,  name: 'T1',  lat: 39.537373, lon: -122.331246},
+        {num: 2,  name: 'T2',  lat: 39.535827, lon: -122.327451},
+        {num: 3,  name: 'T3',  lat: 39.537928, lon: -122.329106},
+        {num: 4,  name: 'T4',  lat: 39.541066, lon: -122.329392},
+        {num: 5,  name: 'T5',  lat: 39.542509, lon: -122.336283},
+        {num: 6,  name: 'T6',  lat: 39.539003, lon: -122.335554},
+        {num: 7,  name: 'T7',  lat: 39.538356, lon: -122.333360},
+        {num: 8,  name: 'T8',  lat: 39.543649, lon: -122.332836},
     ],
 };
 
