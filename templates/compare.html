@@ -410,37 +410,75 @@ function analyzeTurns(allData, lapMeta, leafletMap) {
         });
     }
 
-    const smoothSpeed = smooth(ref.speeds, 5);
+    const smoothSpeed = smooth(ref.speeds, 3);
+    const smoothBrake = smooth(ref.brake, 3);
 
-    // Detect turns: local speed minima with >15 km/h drop
+    // Detect turns using brake zones: find regions where brake > 5%
+    // Each brake zone = a turn. Then find entry (speed before braking),
+    // apex (min speed in/after brake zone), exit (speed recovery after apex).
     const turns = [];
-    let lastMax = 0, entryDist = 0, entrySpeed = 0, entryIdx = 0;
-    let inDrop = false, minSpeed = Infinity, minDist = 0, minIdx = 0;
+    let inBrake = false, brakeStart = 0;
 
-    for (let i = 1; i < smoothSpeed.length - 1; i++) {
-        const spd = smoothSpeed[i];
-
-        if (spd > smoothSpeed[i-1] && spd > smoothSpeed[i+1] && spd > lastMax * 0.9) {
-            if (inDrop && lastMax - minSpeed > 15) {
-                let exitSpeed = minSpeed, exitDist = minDist, exitIdx = minIdx;
-                for (let j = i; j < Math.min(smoothSpeed.length - 1, i + 100); j++) {
-                    if (smoothSpeed[j] > smoothSpeed[j-1] && smoothSpeed[j] > smoothSpeed[j+1] && smoothSpeed[j] > minSpeed + 10) {
-                        exitSpeed = smoothSpeed[j]; exitDist = ref.distances[j]; exitIdx = j;
-                        break;
-                    }
-                }
-                turns.push({
-                    entryDist, entrySpeed, entryIdx,
-                    apexDist: minDist, apexSpeed: minSpeed, apexIdx: minIdx,
-                    exitDist, exitSpeed, exitIdx,
-                    apexLat: ref.lats[minIdx], apexLon: ref.lons[minIdx],
-                });
-            }
-            lastMax = spd; entryDist = ref.distances[i]; entrySpeed = spd; entryIdx = i;
-            inDrop = false; minSpeed = Infinity;
+    for (let i = 0; i < smoothBrake.length; i++) {
+        if (!inBrake && smoothBrake[i] > 5) {
+            inBrake = true;
+            brakeStart = i;
         }
-        if (spd < lastMax - 10) inDrop = true;
-        if (inDrop && spd < minSpeed) { minSpeed = spd; minDist = ref.distances[i]; minIdx = i; }
+        if (inBrake && smoothBrake[i] < 2) {
+            inBrake = false;
+            // Brake zone ended. Find the speed minimum after brake start.
+            // Search from brake start to brake end + some margin for apex after trail braking.
+            const searchEnd = Math.min(smoothSpeed.length - 1, i + 30);
+            let minSpd = Infinity, minIdx = brakeStart;
+            for (let j = brakeStart; j <= searchEnd; j++) {
+                if (smoothSpeed[j] < minSpd) { minSpd = smoothSpeed[j]; minIdx = j; }
+            }
+
+            // Entry = speed just before braking started (look back for local max)
+            let entryIdx = brakeStart;
+            for (let j = brakeStart - 1; j >= Math.max(0, brakeStart - 30); j--) {
+                if (smoothSpeed[j] >= smoothSpeed[entryIdx]) entryIdx = j;
+            }
+
+            // Exit = next local max after apex
+            let exitIdx = minIdx;
+            for (let j = minIdx + 1; j < Math.min(smoothSpeed.length, minIdx + 80); j++) {
+                if (smoothSpeed[j] > smoothSpeed[exitIdx]) exitIdx = j;
+                // Stop if speed starts dropping again (next brake zone)
+                if (j > minIdx + 5 && smoothSpeed[j] < smoothSpeed[j-1] - 3) break;
+            }
+
+            // Skip if speed drop is too small (not a real turn)
+            const entrySpeed = smoothSpeed[entryIdx];
+            if (entrySpeed - minSpd < 5) continue;
+
+            // Skip if too close to previous turn (merge linked turns)
+            if (turns.length > 0) {
+                const prev = turns[turns.length - 1];
+                if (ref.distances[brakeStart] - prev.exitDist < 20) {
+                    // Merge: extend previous turn's exit if this apex is slower
+                    if (minSpd < prev.apexSpeed) {
+                        prev.apexSpeed = minSpd;
+                        prev.apexDist = ref.distances[minIdx];
+                        prev.apexIdx = minIdx;
+                        prev.apexLat = ref.lats[minIdx];
+                        prev.apexLon = ref.lons[minIdx];
+                    }
+                    prev.exitDist = ref.distances[exitIdx];
+                    prev.exitSpeed = smoothSpeed[exitIdx];
+                    prev.exitIdx = exitIdx;
+                    continue;
+                }
+            }
+
+            turns.push({
+                entryDist: ref.distances[entryIdx], entrySpeed, entryIdx,
+                brakeDist: ref.distances[brakeStart],
+                apexDist: ref.distances[minIdx], apexSpeed: minSpd, apexIdx: minIdx,
+                exitDist: ref.distances[exitIdx], exitSpeed: smoothSpeed[exitIdx], exitIdx,
+                apexLat: ref.lats[minIdx], apexLon: ref.lons[minIdx],
+            });
+        }
     }
 
     if (turns.length === 0) return;
@@ -499,61 +537,58 @@ function analyzeTurns(allData, lapMeta, leafletMap) {
         return { num: ti + 1, turn, laps };
     });
 
-    // Build insights
-    const insights = [];
+    // Build insights grouped by turn
+    const turnInsights = []; // array of { num, timeDiff, lines[] }
     for (const td of turnData) {
         const r = td.laps[0], c = td.laps[1];
-        const timeDiff = c.turnTime - r.turnTime; // positive = slower lost time
-        const timeStr = Math.abs(timeDiff) >= 0.01 ? ` (~${Math.abs(timeDiff).toFixed(2)}s)` : '';
-        const gainLoss = timeDiff > 0 ? '&#x1f7e2;' : '&#x1f534;'; // green/red dot
+        const timeDiff = c.turnTime - r.turnTime;
+        const lines = [];
 
         const entryDiff = r.entry - c.entry;
         if (Math.abs(entryDiff) > 3) {
             const who = entryDiff > 0 ? fasterLabel : slowerLabel;
-            insights.push({
-                mag: Math.abs(timeDiff),
-                html: `<strong>T${td.num}</strong>: ${who} enters ${Math.abs(entryDiff)} mph faster${timeStr}`
-            });
-        }
-
-        const apexDiff = r.apex - c.apex;
-        if (Math.abs(apexDiff) > 3) {
-            const who = apexDiff > 0 ? fasterLabel : slowerLabel;
-            insights.push({
-                mag: Math.abs(timeDiff),
-                html: `<strong>T${td.num}</strong>: ${who} carries ${Math.abs(apexDiff)} mph more through the apex${timeStr}`
-            });
+            lines.push(`${who} enters ${Math.abs(entryDiff)} mph faster`);
         }
 
         const brakeFt = Math.round((r.brakeDist - c.brakeDist) * M_TO_FT);
         if (Math.abs(brakeFt) > 15) {
             const who = brakeFt < 0 ? fasterLabel : slowerLabel;
-            insights.push({
-                mag: Math.abs(brakeFt) / 10,
-                html: `<strong>T${td.num}</strong>: ${who} brakes ${Math.abs(brakeFt)} ft later${timeStr}`
-            });
+            lines.push(`${who} brakes ${Math.abs(brakeFt)} ft later`);
+        }
+
+        const apexDiff = r.apex - c.apex;
+        if (Math.abs(apexDiff) > 3) {
+            const who = apexDiff > 0 ? fasterLabel : slowerLabel;
+            lines.push(`${who} carries ${Math.abs(apexDiff)} mph more through apex`);
         }
 
         const exitDiff = r.exit - c.exit;
         if (Math.abs(exitDiff) > 3) {
             const who = exitDiff > 0 ? fasterLabel : slowerLabel;
-            insights.push({
-                mag: Math.abs(timeDiff),
-                html: `<strong>T${td.num}</strong>: ${who} exits ${Math.abs(exitDiff)} mph faster${timeStr}`
-            });
+            lines.push(`${who} exits ${Math.abs(exitDiff)} mph faster`);
+        }
+
+        if (lines.length > 0 || Math.abs(timeDiff) > 0.05) {
+            turnInsights.push({ num: td.num, timeDiff, lines });
         }
     }
 
-    insights.sort((a, b) => b.mag - a.mag);
-
-    if (insights.length > 0) {
+    if (turnInsights.length > 0) {
         const div = document.getElementById('turn-summary');
         div.classList.remove('hidden');
-        document.getElementById('turn-summary-content').innerHTML =
-            (samePerson ? '<p class="text-gray-500 mb-2">Comparing your faster lap vs your slower lap:</p>' : '') +
-            insights.slice(0, 8).map(ins =>
-                `<div class="flex items-start gap-2"><p>${ins.html}</p></div>`
-            ).join('');
+        let html = samePerson ? '<p class="text-gray-500 mb-3">Comparing your faster lap vs your slower lap:</p>' : '';
+        html += turnInsights.map(ti => {
+            const timeColor = ti.timeDiff > 0.05 ? 'text-green-600' : ti.timeDiff < -0.05 ? 'text-red-600' : 'text-gray-400';
+            const timeSign = ti.timeDiff > 0 ? '+' : '';
+            const timeTag = Math.abs(ti.timeDiff) >= 0.01
+                ? `<span class="ml-2 font-mono text-xs ${timeColor}">${timeSign}${ti.timeDiff.toFixed(2)}s</span>` : '';
+            const bullets = ti.lines.map(l => `<li class="text-gray-600">${l}</li>`).join('');
+            return `<div class="mb-2">
+                <p class="font-medium">Turn ${ti.num}${timeTag}</p>
+                ${bullets ? `<ul class="ml-4 text-sm list-disc">${bullets}</ul>` : ''}
+            </div>`;
+        }).join('');
+        document.getElementById('turn-summary-content').innerHTML = html;
     }
 
     // Detail table (imperial)
