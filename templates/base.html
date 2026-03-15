@@ -6,6 +6,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>86 Challenge Telemetry</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#fef2f2', 100: '#fee2e2', 200: '#fecaca',
+                            500: '#ef4444', 600: '#dc2626', 700: '#b91c1c',
+                            800: '#991b1b', 900: '#7f1d1d',
+                        },
+                        dark: {
+                            50: '#f9fafb', 100: '#f3f4f6', 200: '#e5e7eb',
+                            700: '#1e1e2e', 800: '#181825', 900: '#11111b',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -14,89 +33,94 @@
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
         .lap-valid { }
         .lap-invalid { opacity: 0.5; }
-        .lap-best { background-color: #ecfdf5; } /* green - session best */
+        .lap-best { background-color: #ecfdf5; }
         .lap-best td:nth-child(2) { color: #15803d; font-weight: 700; }
-        .lap-pb { background-color: #f5f3ff; } /* purple - track PB */
+        .lap-pb { background-color: #f5f3ff; }
         .lap-pb td:nth-child(2) { color: #7c3aed; font-weight: 700; }
-        .lap-selected { background-color: #eff6ff !important; } /* blue - currently viewing */
-        .split-pb { color: #7c3aed; font-weight: 700; } /* purple bold - track PB split */
-        .split-event { color: #15803d; font-weight: 600; } /* green - event best split */
+        .lap-selected { background-color: #eff6ff !important; }
+        .split-pb { color: #7c3aed; font-weight: 700; }
+        .split-event { color: #15803d; font-weight: 600; }
         .leaflet-pane, .leaflet-top, .leaflet-bottom,
         .leaflet-control { z-index: 30 !important; }
         .turn-label { background: none !important; border: none !important; box-shadow: none !important;
             font-weight: 700; font-size: 11px; color: #1f2937; }
-        /* Mobile: horizontal scroll for tables */
         .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .table-wrap table { min-width: 600px; }
-        /* Mobile: stack grids */
         @media (max-width: 640px) {
             .grid-cols-2 { grid-template-columns: 1fr !important; }
         }
+        /* Brand gradient for hero elements */
+        .brand-gradient { background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); }
+        /* Dark form inputs */
+        input, select, textarea { background-color: #1e1e2e !important; color: #e5e7eb !important; }
+        input::placeholder, textarea::placeholder { color: #6b7280 !important; }
+        option { background-color: #1e1e2e; color: #e5e7eb; }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
-    <nav class="bg-gray-900 text-white shadow-lg">
+<body class="bg-dark-900 min-h-screen text-gray-100">
+    <nav class="bg-dark-800 border-b border-gray-700/50 shadow-lg">
         <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-            <a href="/" class="text-xl font-bold tracking-tight whitespace-nowrap">
-                <span class="text-red-500">86</span> Challenge
+            <a href="/" class="flex items-center gap-2">
+                <span class="text-2xl font-black tracking-tighter">
+                    <span class="text-brand-500">86</span><span class="text-white">CHALLENGE</span>
+                </span>
+                <span class="text-xs text-gray-500 hidden sm:block">TELEMETRY</span>
             </a>
             <!-- Desktop nav -->
-            <div class="hidden md:flex gap-6 text-sm">
-                <a href="/" class="hover:text-red-400">Home</a>
-                <a href="/upload" class="hover:text-red-400">Upload</a>
-                <a href="/events" class="hover:text-red-400">Events</a>
-                <a href="/sessions" class="hover:text-red-400">Sessions</a>
-                <a href="/leaderboard" class="hover:text-red-400">Leaderboard</a>
+            <div class="hidden md:flex gap-6 text-sm text-gray-300">
+                <a href="/" class="hover:text-brand-500 transition">Home</a>
+                <a href="/upload" class="hover:text-brand-500 transition">Upload</a>
+                <a href="/events" class="hover:text-brand-500 transition">Events</a>
+                <a href="/sessions" class="hover:text-brand-500 transition">Sessions</a>
+                <a href="/leaderboard" class="hover:text-brand-500 transition">Leaderboard</a>
             </div>
             <!-- Mobile hamburger -->
-            <button class="md:hidden text-white" onclick="document.getElementById('mobile-nav').classList.toggle('hidden')">
+            <button class="md:hidden text-gray-300" onclick="document.getElementById('mobile-nav').classList.toggle('hidden')">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
                 </svg>
             </button>
         </div>
         <!-- Mobile menu -->
-        <div id="mobile-nav" class="hidden md:hidden border-t border-gray-700 px-4 py-2 space-y-2 text-sm">
-            <a href="/" class="block py-1 hover:text-red-400">Home</a>
-            <a href="/upload" class="block py-1 hover:text-red-400">Upload</a>
-            <a href="/events" class="block py-1 hover:text-red-400">Events</a>
-            <a href="/sessions" class="block py-1 hover:text-red-400">Sessions</a>
-            <a href="/leaderboard" class="block py-1 hover:text-red-400">Leaderboard</a>
+        <div id="mobile-nav" class="hidden md:hidden border-t border-gray-700 px-4 py-2 space-y-2 text-sm text-gray-300">
+            <a href="/" class="block py-1 hover:text-brand-500">Home</a>
+            <a href="/upload" class="block py-1 hover:text-brand-500">Upload</a>
+            <a href="/events" class="block py-1 hover:text-brand-500">Events</a>
+            <a href="/sessions" class="block py-1 hover:text-brand-500">Sessions</a>
+            <a href="/leaderboard" class="block py-1 hover:text-brand-500">Leaderboard</a>
         </div>
     </nav>
     <main class="max-w-7xl mx-auto px-4 py-6">
         {{template "content" .}}
     </main>
-    <!-- Compare bar (global, persisted via sessionStorage) -->
-    <div id="compare-bar" class="hidden fixed bottom-0 left-0 right-0 bg-gray-900 text-white p-3 flex items-center justify-between z-50">
-        <span id="compare-count">0 laps selected</span>
+
+    <!-- Compare bar -->
+    <div id="compare-bar" class="hidden fixed bottom-0 left-0 right-0 bg-dark-800 border-t border-gray-700 text-white p-3 flex items-center justify-between z-50">
+        <span id="compare-count" class="text-gray-300">0 laps selected</span>
         <div>
-            <button onclick="clearCompare()" class="text-gray-400 hover:text-white mr-4 text-sm">Clear</button>
-            <a id="compare-link" href="/compare" class="bg-red-600 px-4 py-2 rounded hover:bg-red-700">Compare Laps</a>
+            <button onclick="clearCompare()" class="text-gray-500 hover:text-white mr-4 text-sm">Clear</button>
+            <a id="compare-link" href="/compare" class="bg-brand-600 px-4 py-2 rounded hover:bg-brand-700 transition">Compare Laps</a>
         </div>
     </div>
 
     <script>
-    // Global compare selection — persisted in sessionStorage
+    // Chart.js dark theme defaults
+    if (window.Chart) {
+        Chart.defaults.color = '#9ca3af';
+        Chart.defaults.borderColor = 'rgba(255,255,255,0.08)';
+        Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(17,17,27,0.95)';
+        Chart.defaults.plugins.tooltip.titleColor = '#e5e7eb';
+        Chart.defaults.plugins.tooltip.bodyColor = '#d1d5db';
+        Chart.defaults.plugins.tooltip.borderColor = 'rgba(255,255,255,0.1)';
+        Chart.defaults.plugins.tooltip.borderWidth = 1;
+    }
     let compareSet = new Set(JSON.parse(sessionStorage.getItem('compareLaps') || '[]'));
-
     function addToCompare(lapId) {
-        if (compareSet.has(lapId)) {
-            compareSet.delete(lapId);
-        } else {
-            compareSet.add(lapId);
-        }
-        saveCompare();
-        updateCompareBar();
+        if (compareSet.has(lapId)) compareSet.delete(lapId); else compareSet.add(lapId);
+        saveCompare(); updateCompareBar();
     }
-    function clearCompare() {
-        compareSet.clear();
-        saveCompare();
-        updateCompareBar();
-    }
-    function saveCompare() {
-        sessionStorage.setItem('compareLaps', JSON.stringify([...compareSet]));
-    }
+    function clearCompare() { compareSet.clear(); saveCompare(); updateCompareBar(); }
+    function saveCompare() { sessionStorage.setItem('compareLaps', JSON.stringify([...compareSet])); }
     function updateCompareBar() {
         const bar = document.getElementById('compare-bar');
         const count = document.getElementById('compare-count');
@@ -105,23 +129,19 @@
             bar.classList.remove('hidden');
             count.textContent = compareSet.size + ' lap' + (compareSet.size > 1 ? 's' : '') + ' selected';
             link.href = '/compare?laps=' + [...compareSet].join(',');
-        } else {
-            bar.classList.add('hidden');
-        }
-        // Update any compare buttons on the page
+        } else { bar.classList.add('hidden'); }
         document.querySelectorAll('[data-compare-lap]').forEach(btn => {
             const id = parseInt(btn.dataset.compareLap);
             btn.textContent = compareSet.has(id) ? 'Remove' : 'Compare';
-            btn.classList.toggle('text-red-600', compareSet.has(id));
-            btn.classList.toggle('text-blue-600', !compareSet.has(id));
+            btn.classList.toggle('text-brand-500', compareSet.has(id));
+            btn.classList.toggle('text-blue-400', !compareSet.has(id));
         });
     }
-    // Initialize on page load
     updateCompareBar();
     </script>
 
-    <footer class="text-center text-gray-400 text-xs py-4 mt-8 mb-12">
-        86 Challenge Telemetry &mdash; GR86 / BRZ / FR-S Time Trial Community
+    <footer class="text-center text-gray-600 text-xs py-4 mt-8 mb-12 border-t border-gray-800">
+        86 Challenge Telemetry &mdash; GR86 / BRZ / FR-S Time Trial Community &mdash; Northern California
     </footer>
 </body>
 </html>

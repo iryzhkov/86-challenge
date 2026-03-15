@@ -1,17 +1,17 @@
 {{template "base" .}}
 {{define "content"}}
-<h1 class="text-2xl font-bold text-gray-900 mb-6">Sessions</h1>
+<h1 class="text-2xl font-bold text-gray-100 mb-6">Sessions</h1>
 
 <!-- Filters -->
-<form method="GET" action="/sessions" class="flex flex-wrap gap-3 mb-6 items-end bg-white rounded-lg shadow p-4">
+<form method="GET" action="/sessions" class="flex flex-wrap gap-3 mb-6 items-end bg-dark-800 rounded-lg shadow-lg shadow-black/20 p-4">
     <div>
-        <label class="block text-xs font-medium text-gray-600 mb-1">Driver</label>
+        <label class="block text-xs font-medium text-gray-500 mb-1">Driver</label>
         <input type="text" name="driver" value="{{.Filters.DriverName}}" placeholder="Name..."
-               class="rounded border-gray-300 border px-2 py-1.5 text-sm w-36">
+               class="rounded border-gray-600 border px-2 py-1.5 text-sm w-36">
     </div>
     <div>
-        <label class="block text-xs font-medium text-gray-600 mb-1">Track</label>
-        <select name="track" class="rounded border-gray-300 border px-2 py-1.5 text-sm">
+        <label class="block text-xs font-medium text-gray-500 mb-1">Track</label>
+        <select name="track" class="rounded border-gray-600 border px-2 py-1.5 text-sm">
             <option value="">All</option>
             {{range .Tracks}}
             <option value="{{.Name}}" {{if eq .Name $.Filters.TrackName}}selected{{end}}>{{.Name}} - {{.Config}}</option>
@@ -19,8 +19,8 @@
         </select>
     </div>
     <div>
-        <label class="block text-xs font-medium text-gray-600 mb-1">Class</label>
-        <select name="class" class="rounded border-gray-300 border px-2 py-1.5 text-sm">
+        <label class="block text-xs font-medium text-gray-500 mb-1">Class</label>
+        <select name="class" class="rounded border-gray-600 border px-2 py-1.5 text-sm">
             <option value="">All</option>
             <option value="stock" {{if eq .Filters.CarClass "stock"}}selected{{end}}>Stock</option>
             <option value="street" {{if eq .Filters.CarClass "street"}}selected{{end}}>Street</option>
@@ -29,33 +29,33 @@
         </select>
     </div>
     <div>
-        <label class="block text-xs font-medium text-gray-600 mb-1">Tire Brand</label>
+        <label class="block text-xs font-medium text-gray-500 mb-1">Tire Brand</label>
         <input type="text" name="tire_brand" value="{{.Filters.TireBrand}}" placeholder="Brand..."
-               class="rounded border-gray-300 border px-2 py-1.5 text-sm w-28">
+               class="rounded border-gray-600 border px-2 py-1.5 text-sm w-28">
     </div>
     <div>
-        <label class="block text-xs font-medium text-gray-600 mb-1">Tire Model</label>
+        <label class="block text-xs font-medium text-gray-500 mb-1">Tire Model</label>
         <input type="text" name="tire_model" value="{{.Filters.TireModel}}" placeholder="Model..."
-               class="rounded border-gray-300 border px-2 py-1.5 text-sm w-28">
+               class="rounded border-gray-600 border px-2 py-1.5 text-sm w-28">
     </div>
     <div>
-        <label class="block text-xs font-medium text-gray-600 mb-1">From</label>
+        <label class="block text-xs font-medium text-gray-500 mb-1">From</label>
         <input type="date" name="date_from" value="{{.Filters.DateFrom}}"
-               class="rounded border-gray-300 border px-2 py-1.5 text-sm">
+               class="rounded border-gray-600 border px-2 py-1.5 text-sm">
     </div>
     <div>
-        <label class="block text-xs font-medium text-gray-600 mb-1">To</label>
+        <label class="block text-xs font-medium text-gray-500 mb-1">To</label>
         <input type="date" name="date_to" value="{{.Filters.DateTo}}"
-               class="rounded border-gray-300 border px-2 py-1.5 text-sm">
+               class="rounded border-gray-600 border px-2 py-1.5 text-sm">
     </div>
-    <button type="submit" class="bg-red-600 text-white px-4 py-1.5 rounded text-sm hover:bg-red-700">Search</button>
+    <button type="submit" class="bg-brand-600 text-white px-4 py-1.5 rounded text-sm hover:bg-brand-700">Search</button>
     <a href="/sessions" class="text-gray-500 text-sm hover:underline px-2 py-1.5">Clear</a>
 </form>
 
 {{if .Sessions}}
-<div class="bg-white rounded-lg shadow table-wrap">
+<div class="bg-dark-800 rounded-lg shadow-lg shadow-black/20 table-wrap">
     <table class="w-full text-sm">
-        <thead class="bg-gray-50 text-gray-600 text-left">
+        <thead class="bg-dark-700 text-gray-500 text-left">
             <tr>
                 <th class="px-4 py-3">Driver</th>
                 <th class="px-4 py-3">Track</th>
@@ -66,26 +66,26 @@
                 <th class="px-4 py-3">File</th>
             </tr>
         </thead>
-        <tbody class="divide-y divide-gray-100">
+        <tbody class="divide-y divide-gray-700">
             {{range .Sessions}}
-            <tr class="hover:bg-gray-50 cursor-pointer" onclick="window.location='/session/{{.ID}}'">
+            <tr class="hover:bg-dark-700 cursor-pointer" onclick="window.location='/session/{{.ID}}'">
                 <td class="px-4 py-2 font-medium">{{.DriverName}}</td>
                 <td class="px-4 py-2">{{.TrackName}} {{.TrackConfig}}</td>
                 <td class="px-4 py-2">
                     {{.CarModel}}
-                    {{if .CarClass}}<span class="text-xs bg-gray-100 px-1.5 py-0.5 rounded">{{.CarClass}}</span>{{end}}
+                    {{if .CarClass}}<span class="text-xs bg-dark-700 px-1.5 py-0.5 rounded">{{.CarClass}}</span>{{end}}
                 </td>
                 <td class="px-4 py-2 text-gray-500">{{.TireBrand}} {{.TireModel}}</td>
-                <td class="px-4 py-2 font-mono font-semibold text-green-700">{{.BestLapTime}}</td>
+                <td class="px-4 py-2 font-mono font-semibold text-green-400">{{.BestLapTime}}</td>
                 <td class="px-4 py-2 text-gray-500">{{.UploadedAt.Format "Jan 2, 2006"}}</td>
-                <td class="px-4 py-2 text-gray-400 text-xs truncate max-w-[150px]">{{.Filename}}</td>
+                <td class="px-4 py-2 text-gray-500 text-xs truncate max-w-[150px]">{{.Filename}}</td>
             </tr>
             {{end}}
         </tbody>
     </table>
 </div>
 {{else}}
-<div class="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+<div class="bg-dark-800 rounded-lg shadow-lg shadow-black/20 p-8 text-center text-gray-500">
     {{if .Filters.DriverName}}No sessions found matching the filters.
     {{else}}Enter a driver name or select filters to search sessions.{{end}}
 </div>

@@ -1,12 +1,12 @@
 {{template "base" .}}
 {{define "content"}}
-<h1 class="text-2xl font-bold text-gray-900 mb-6">Leaderboard</h1>
+<h1 class="text-2xl font-bold text-gray-100 mb-6">Leaderboard</h1>
 
 <!-- Filters -->
-<form method="GET" action="/leaderboard" class="flex flex-wrap gap-3 mb-6 items-end bg-white rounded-lg shadow p-4">
+<form method="GET" action="/leaderboard" class="flex flex-wrap gap-3 mb-6 items-end bg-dark-800 rounded-lg shadow-lg shadow-black/20 p-4">
     <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Track</label>
-        <select name="track" class="rounded-lg border-gray-300 border px-3 py-2"
+        <label class="block text-sm font-medium text-gray-300 mb-1">Track</label>
+        <select name="track" class="rounded-lg border-gray-600 border px-3 py-2"
                 hx-get="/leaderboard" hx-target="body" hx-push-url="true"
                 hx-include="[name='config'],[name='class']">
             <option value="">Select track...</option>
@@ -16,8 +16,8 @@
         </select>
     </div>
     <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Class</label>
-        <select name="class" class="rounded-lg border-gray-300 border px-3 py-2">
+        <label class="block text-sm font-medium text-gray-300 mb-1">Class</label>
+        <select name="class" class="rounded-lg border-gray-600 border px-3 py-2">
             <option value="">All Classes</option>
             <option value="stock" {{if eq .FilterClass "stock"}}selected{{end}}>Stock</option>
             <option value="street" {{if eq .FilterClass "street"}}selected{{end}}>Street</option>
@@ -26,22 +26,22 @@
         </select>
     </div>
     <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Tire Brand</label>
+        <label class="block text-sm font-medium text-gray-300 mb-1">Tire Brand</label>
         <input type="text" name="tire_brand" value="{{.FilterTire}}" placeholder="e.g. Yokohama"
-               class="rounded-lg border-gray-300 border px-3 py-2 w-32">
+               class="rounded-lg border-gray-600 border px-3 py-2 w-32">
     </div>
     <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Tire Model</label>
+        <label class="block text-sm font-medium text-gray-300 mb-1">Tire Model</label>
         <input type="text" name="tire_model" value="{{.FilterTireModel}}" placeholder="e.g. V601"
-               class="rounded-lg border-gray-300 border px-3 py-2 w-32">
+               class="rounded-lg border-gray-600 border px-3 py-2 w-32">
     </div>
-    <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">Filter</button>
+    <button type="submit" class="bg-brand-600 text-white px-4 py-2 rounded-lg hover:bg-brand-700">Filter</button>
 </form>
 
 {{if .Entries}}
-<div class="bg-white rounded-lg shadow table-wrap">
+<div class="bg-dark-800 rounded-lg shadow-lg shadow-black/20 table-wrap">
     <table class="w-full text-sm">
-        <thead class="bg-gray-50 text-gray-600 text-left">
+        <thead class="bg-dark-700 text-gray-500 text-left">
             <tr>
                 <th class="px-4 py-3 w-12">#</th>
                 <th class="px-4 py-3">Driver</th>
@@ -52,17 +52,17 @@
                 <th class="px-4 py-3">Tires</th>
             </tr>
         </thead>
-        <tbody class="divide-y divide-gray-100">
+        <tbody class="divide-y divide-gray-700">
             {{range .Entries}}
-            <tr class="hover:bg-gray-50 cursor-pointer" onclick="window.location='/session/{{.SessionID}}'">
+            <tr class="hover:bg-dark-700 cursor-pointer" onclick="window.location='/session/{{.SessionID}}'">
                 <td class="px-4 py-2 text-gray-500 font-medium">{{.Rank}}</td>
                 <td class="px-4 py-2 font-medium">{{.DriverName}}</td>
                 <td class="px-4 py-2">
-                    <span class="text-xs bg-gray-100 px-2 py-0.5 rounded">{{.CarClass}}</span>
+                    <span class="text-xs bg-dark-700 px-2 py-0.5 rounded">{{.CarClass}}</span>
                 </td>
-                <td class="px-4 py-2">{{.CarModel}} <span class="text-gray-400 text-xs">{{.CarGen}}</span></td>
+                <td class="px-4 py-2">{{.CarModel}} <span class="text-gray-500 text-xs">{{.CarGen}}</span></td>
                 <td class="px-4 py-2 text-gray-500">{{.ModPoints}}</td>
-                <td class="px-4 py-2 font-mono font-semibold text-green-700">{{.BestLapTime}}</td>
+                <td class="px-4 py-2 font-mono font-semibold text-green-400">{{.BestLapTime}}</td>
                 <td class="px-4 py-2 text-gray-500">{{.TireBrand}} {{.TireModel}}</td>
             </tr>
             {{end}}
@@ -70,11 +70,11 @@
     </table>
 </div>
 {{else if .FilterTrack}}
-<div class="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+<div class="bg-dark-800 rounded-lg shadow-lg shadow-black/20 p-8 text-center text-gray-500">
     No laps found for the selected filters.
 </div>
 {{else}}
-<div class="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+<div class="bg-dark-800 rounded-lg shadow-lg shadow-black/20 p-8 text-center text-gray-500">
     Select a track to view the leaderboard.
 </div>
 {{end}}

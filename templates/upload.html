@@ -1,6 +1,6 @@
 {{template "base" .}}
 {{define "content"}}
-<h1 class="text-2xl font-bold text-gray-900 mb-6">Upload Session</h1>
+<h1 class="text-2xl font-bold text-gray-100 mb-6">Upload Session</h1>
 
 {{if eq .Step 1}}
 <!-- Step 1: Find or Create Event -->
@@ -8,11 +8,11 @@
 
     <!-- Recent Events (quick pick) -->
     {{if .RecentEvents}}
-    <h2 class="text-lg font-semibold text-gray-800 mb-3">Recent Events</h2>
+    <h2 class="text-lg font-semibold text-gray-200 mb-3">Recent Events</h2>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-8">
         {{range .RecentEvents}}
-        <a href="/upload?event={{.ID}}" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition border-l-4 border-red-500">
-            <p class="font-semibold text-gray-900">{{.Name}}</p>
+        <a href="/upload?event={{.ID}}" class="bg-dark-800 rounded-lg shadow-lg shadow-black/20 p-4 hover:shadow-lg hover:shadow-black/30 transition border-l-4 border-red-500">
+            <p class="font-semibold text-gray-100">{{.Name}}</p>
             <p class="text-sm text-gray-500">{{.TrackName}} {{.TrackConfig}} &mdash; {{.Date.Format "Jan 2, 2006"}}</p>
         </a>
         {{end}}
@@ -20,12 +20,12 @@
     {{end}}
 
     <!-- Search by Track / Date -->
-    <h2 class="text-lg font-semibold text-gray-800 mb-3">Find Event</h2>
-    <div class="bg-white rounded-lg shadow p-6 mb-8">
+    <h2 class="text-lg font-semibold text-gray-200 mb-3">Find Event</h2>
+    <div class="bg-dark-800 rounded-lg shadow-lg shadow-black/20 p-6 mb-8">
         <div class="grid grid-cols-2 gap-4 mb-4">
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Track</label>
-                <select id="filter-track" class="w-full rounded-lg border-gray-300 border px-3 py-2"
+                <label class="block text-sm font-medium text-gray-300 mb-1">Track</label>
+                <select id="filter-track" class="w-full rounded-lg border-gray-600 border px-3 py-2"
                         hx-get="/api/events" hx-target="#event-results" hx-trigger="change"
                         hx-include="#filter-date" name="track_id">
                     <option value="">All tracks</option>
@@ -35,45 +35,45 @@
                 </select>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                <label class="block text-sm font-medium text-gray-300 mb-1">Date</label>
                 <input type="date" id="filter-date" name="date"
-                       class="w-full rounded-lg border-gray-300 border px-3 py-2"
+                       class="w-full rounded-lg border-gray-600 border px-3 py-2"
                        hx-get="/api/events" hx-target="#event-results" hx-trigger="change"
                        hx-include="#filter-track">
             </div>
         </div>
         <div id="event-results">
-            <p class="text-gray-400 text-sm">Select a track or date to find events.</p>
+            <p class="text-gray-500 text-sm">Select a track or date to find events.</p>
         </div>
     </div>
 
     <!-- Create New Event -->
-    <h2 class="text-lg font-semibold text-gray-800 mb-3">Or Create a New Event</h2>
-    <form method="POST" action="/upload/create-event" class="bg-white rounded-lg shadow p-6 space-y-4">
+    <h2 class="text-lg font-semibold text-gray-200 mb-3">Or Create a New Event</h2>
+    <form method="POST" action="/upload/create-event" class="bg-dark-800 rounded-lg shadow-lg shadow-black/20 p-6 space-y-4">
         <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Event Name</label>
+            <label class="block text-sm font-medium text-gray-300 mb-1">Event Name</label>
             <input type="text" name="event_name" required placeholder="e.g. Track Day - Laguna Seca"
-                   class="w-full rounded-lg border-gray-300 border px-3 py-2">
+                   class="w-full rounded-lg border-gray-600 border px-3 py-2">
         </div>
         <div class="grid grid-cols-2 gap-4">
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Track</label>
-                <select name="track_id" required class="w-full rounded-lg border-gray-300 border px-3 py-2">
+                <label class="block text-sm font-medium text-gray-300 mb-1">Track</label>
+                <select name="track_id" required class="w-full rounded-lg border-gray-600 border px-3 py-2">
                     {{range .Tracks}}
                     <option value="{{.ID}}">{{.Name}} - {{.Config}}</option>
                     {{end}}
                 </select>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                <label class="block text-sm font-medium text-gray-300 mb-1">Date</label>
                 <input type="date" name="event_date" required
-                       class="w-full rounded-lg border-gray-300 border px-3 py-2">
+                       class="w-full rounded-lg border-gray-600 border px-3 py-2">
             </div>
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Organizer (optional)</label>
+            <label class="block text-sm font-medium text-gray-300 mb-1">Organizer (optional)</label>
             <input type="text" name="organizer" placeholder="e.g. SpeedSF, Speed Ventures"
-                   class="w-full rounded-lg border-gray-300 border px-3 py-2">
+                   class="w-full rounded-lg border-gray-600 border px-3 py-2">
         </div>
         <button type="submit" class="bg-gray-800 text-white px-6 py-2 rounded-lg hover:bg-gray-900">
             Create Event & Continue
@@ -84,54 +84,54 @@
 {{else}}
 <!-- Step 2: Upload VBO to Event -->
 <div class="max-w-2xl">
-    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-        <p class="text-sm text-blue-800">
+    <div class="bg-blue-900/30 border border-blue-700 rounded-lg p-4 mb-6">
+        <p class="text-sm text-blue-300">
             Uploading to: <strong>{{.Event.Name}}</strong> &mdash;
             {{.Event.TrackName}} {{.Event.TrackConfig}},
             {{.Event.Date.Format "January 2, 2006"}}
         </p>
-        <a href="/upload" class="text-blue-600 text-sm hover:underline">Change event</a>
+        <a href="/upload" class="text-blue-400 text-sm hover:underline">Change event</a>
     </div>
 
     <form method="POST" action="/upload" enctype="multipart/form-data" class="space-y-6">
         <input type="hidden" name="event_id" value="{{.Event.ID}}">
 
         <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">VBO File</label>
-            <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-red-400 transition">
+            <label class="block text-sm font-medium text-gray-300 mb-1">VBO File</label>
+            <div class="border-2 border-dashed border-gray-600 rounded-lg p-8 text-center hover:border-red-400 transition">
                 <input type="file" name="vbofile" accept=".vbo" required multiple
-                       class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-medium file:bg-red-50 file:text-red-700 hover:file:bg-red-100">
-                <p class="text-gray-400 text-sm mt-2">Export from RaceChrono as VBO. Select one or multiple files. Track must match the event.</p>
+                       class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-medium file:bg-brand-900/30 file:text-brand-500 hover:file:bg-red-100">
+                <p class="text-gray-500 text-sm mt-2">Export from RaceChrono as VBO. Select one or multiple files. Track must match the event.</p>
             </div>
         </div>
 
         <div class="relative">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Driver Name</label>
+            <label class="block text-sm font-medium text-gray-300 mb-1">Driver Name</label>
             <input type="text" name="driver_name" id="driver_name" required
-                   class="w-full rounded-lg border-gray-300 border px-3 py-2"
+                   class="w-full rounded-lg border-gray-600 border px-3 py-2"
                    placeholder="Your name"
                    hx-get="/api/drivers" hx-trigger="keyup changed delay:300ms" hx-target="#driver-results"
                    hx-params="*" autocomplete="off">
-            <div id="driver-results" class="absolute z-10 w-full bg-white border rounded-lg shadow-lg mt-1 hidden"></div>
+            <div id="driver-results" class="absolute z-10 w-full bg-dark-800 border rounded-lg shadow-lg mt-1 hidden"></div>
         </div>
 
         <div class="grid grid-cols-2 gap-4">
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Generation</label>
+                <label class="block text-sm font-medium text-gray-300 mb-1">Generation</label>
                 <div class="flex gap-4">
                     <label class="flex items-center gap-2">
-                        <input type="radio" name="car_generation" value="2nd Gen" checked class="text-red-600">
+                        <input type="radio" name="car_generation" value="2nd Gen" checked class="text-brand-500">
                         <span class="text-sm">2nd Gen (2022+)</span>
                     </label>
                     <label class="flex items-center gap-2">
-                        <input type="radio" name="car_generation" value="1st Gen" class="text-red-600">
+                        <input type="radio" name="car_generation" value="1st Gen" class="text-brand-500">
                         <span class="text-sm">1st Gen</span>
                     </label>
                 </div>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Model</label>
-                <select name="car_model" class="w-full rounded-lg border-gray-300 border px-3 py-2">
+                <label class="block text-sm font-medium text-gray-300 mb-1">Model</label>
+                <select name="car_model" class="w-full rounded-lg border-gray-600 border px-3 py-2">
                     <option value="GR86">GR86</option>
                     <option value="BRZ">BRZ</option>
                     <option value="FR-S">FR-S</option>
@@ -141,8 +141,8 @@
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Class</label>
-            <select name="car_class" class="w-full rounded-lg border-gray-300 border px-3 py-2">
+            <label class="block text-sm font-medium text-gray-300 mb-1">Class</label>
+            <select name="car_class" class="w-full rounded-lg border-gray-600 border px-3 py-2">
                 <option value="stock">Stock</option>
                 <option value="street">Street</option>
                 <option value="touring">Touring</option>
@@ -152,9 +152,9 @@
 
         <div class="grid grid-cols-2 gap-4">
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Tire Brand</label>
+                <label class="block text-sm font-medium text-gray-300 mb-1">Tire Brand</label>
                 <input type="text" name="tire_brand" value="{{.DefaultTireBrand}}"
-                       class="w-full rounded-lg border-gray-300 border px-3 py-2" list="tire-brands">
+                       class="w-full rounded-lg border-gray-600 border px-3 py-2" list="tire-brands">
                 <datalist id="tire-brands">
                     <option value="Yokohama"><option value="GT Radial"><option value="Hankook">
                     <option value="Federal"><option value="Nankang"><option value="Falken">
@@ -162,24 +162,24 @@
                 </datalist>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Tire Model</label>
+                <label class="block text-sm font-medium text-gray-300 mb-1">Tire Model</label>
                 <input type="text" name="tire_model" value="{{.DefaultTireModel}}"
-                       class="w-full rounded-lg border-gray-300 border px-3 py-2">
+                       class="w-full rounded-lg border-gray-600 border px-3 py-2">
             </div>
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Mod Points</label>
+            <label class="block text-sm font-medium text-gray-300 mb-1">Mod Points</label>
             <input type="number" name="mod_points" value="0" min="0"
-                   class="w-32 rounded-lg border-gray-300 border px-3 py-2">
+                   class="w-32 rounded-lg border-gray-600 border px-3 py-2">
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Notes (optional)</label>
-            <textarea name="notes" rows="2" class="w-full rounded-lg border-gray-300 border px-3 py-2"></textarea>
+            <label class="block text-sm font-medium text-gray-300 mb-1">Notes (optional)</label>
+            <textarea name="notes" rows="2" class="w-full rounded-lg border-gray-600 border px-3 py-2"></textarea>
         </div>
 
-        <button type="submit" class="bg-red-600 text-white px-8 py-3 rounded-lg font-medium hover:bg-red-700 text-lg">
+        <button type="submit" class="bg-brand-600 text-white px-8 py-3 rounded-lg font-medium hover:bg-brand-700 text-lg">
             Upload & Process
         </button>
     </form>
