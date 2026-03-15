@@ -48,7 +48,7 @@ func main() {
 	}
 	pages := []string{
 		"home.html", "upload.html", "session.html", "leaderboard.html",
-		"compare.html", "driver.html", "event.html", "events.html", "sessions.html",
+		"compare.html", "driver.html", "drivers.html", "event.html", "events.html", "sessions.html",
 	}
 	handlers.Templates = make(map[string]*template.Template)
 	for _, page := range pages {
@@ -77,6 +77,7 @@ func main() {
 	mux.HandleFunc("/session/", handlers.SessionView)
 	mux.HandleFunc("/leaderboard", handlers.LeaderboardPage)
 	mux.HandleFunc("/compare", handlers.ComparePage)
+	mux.HandleFunc("/drivers", handlers.DriversListPage)
 	mux.HandleFunc("/driver/", handlers.DriverPage)
 	mux.HandleFunc("/sessions", handlers.SessionsListPage)
 	mux.HandleFunc("/events", handlers.EventsListPage)

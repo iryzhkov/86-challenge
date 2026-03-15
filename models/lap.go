@@ -318,6 +318,54 @@ func DriverTrackRecords(driverID int) ([]DriverTrackRecord, error) {
 	return records, nil
 }
 
+// LapProgression returns the best lap time per event/date for a driver, for charting improvement.
+type LapProgressionPoint struct {
+	Date      string // YYYY-MM-DD
+	TrackName string
+	LapTimeMs int
+	LapTime   string
+}
+
+func GetLapProgression(driverID int) ([]LapProgressionPoint, error) {
+	rows, err := DB.Query(context.Background(),
+		`SELECT e.date, t.name || ' ' || t.config, MIN(l.lap_time_ms)
+		 FROM laps l
+		 JOIN sessions s ON s.id = l.session_id
+		 JOIN events e ON e.id = s.event_id
+		 JOIN tracks t ON t.id = s.track_id
+		 WHERE s.driver_id = $1 AND l.is_valid = true AND s.event_id IS NOT NULL
+		 GROUP BY e.date, t.name, t.config
+		 ORDER BY e.date`, driverID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var points []LapProgressionPoint
+	for rows.Next() {
+		var p LapProgressionPoint
+		var date interface{}
+		if err := rows.Scan(&date, &p.TrackName, &p.LapTimeMs); err != nil {
+			continue
+		}
+		// date comes as time.Time from pgx
+		if t, ok := date.(interface{ Format(string) string }); ok {
+			p.Date = t.Format("2006-01-02")
+		}
+		ms := p.LapTimeMs
+		min := ms / 60000
+		sec := (ms % 60000) / 1000
+		mil := ms % 1000
+		if min > 0 {
+			p.LapTime = fmt.Sprintf("%d:%02d.%03d", min, sec, mil)
+		} else {
+			p.LapTime = fmt.Sprintf("%d.%03d", sec, mil)
+		}
+		points = append(points, p)
+	}
+	return points, nil
+}
+
 func GetTrackIDByNameConfig(name, config string) (int, error) {
 	var id int
 	err := DB.QueryRow(context.Background(),

@@ -1,0 +1,33 @@
+{{template "base" .}}
+{{define "content"}}
+<h1 class="text-2xl font-bold text-gray-900 mb-6">Drivers</h1>
+
+{{if .Drivers}}
+<div class="bg-white rounded-lg shadow table-wrap">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-600 text-left">
+            <tr>
+                <th class="px-4 py-3">Name</th>
+                <th class="px-4 py-3">Car</th>
+                <th class="px-4 py-3">Class</th>
+                <th class="px-4 py-3">Tires</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {{range .Drivers}}
+            <tr class="hover:bg-gray-50 cursor-pointer" onclick="window.location='/driver/{{.ID}}'">
+                <td class="px-4 py-3 font-medium">{{.Name}}</td>
+                <td class="px-4 py-3">{{.CarModel}} {{if .CarGeneration}}<span class="text-gray-400 text-xs">{{.CarGeneration}}</span>{{end}}</td>
+                <td class="px-4 py-3">{{if .CarClass}}<span class="text-xs bg-gray-100 px-2 py-0.5 rounded">{{.CarClass}}</span>{{end}}</td>
+                <td class="px-4 py-3 text-gray-500">{{.TireBrand}} {{.TireModel}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{else}}
+<div class="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+    No drivers with uploaded sessions yet.
+</div>
+{{end}}
+{{end}}

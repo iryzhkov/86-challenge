@@ -22,6 +22,23 @@
 </div>
 {{end}}
 
+<!-- Stats bar -->
+{{if .TheoreticalLap}}
+<div class="flex flex-wrap gap-6 mb-6 text-sm">
+    <div class="bg-purple-50 border border-purple-200 rounded-lg px-4 py-2">
+        <span class="text-purple-700 font-medium">Theoretical Best:</span>
+        <span class="font-mono font-bold text-purple-900">{{.TheoreticalLap}}</span>
+        <span class="text-purple-500 text-xs ml-1">({{range $i, $s := .TheoreticalSectors}}{{if $i}} + {{end}}{{$s}}{{end}})</span>
+    </div>
+    {{if .Consistency}}
+    <div class="bg-gray-50 border border-gray-200 rounded-lg px-4 py-2">
+        <span class="text-gray-600 font-medium">Consistency:</span>
+        <span class="font-mono text-gray-800">{{.Consistency}}</span>
+    </div>
+    {{end}}
+</div>
+{{end}}
+
 <!-- Lap Tables (grouped by session) -->
 {{range .SessionBlocks}}
 <div class="mb-6">

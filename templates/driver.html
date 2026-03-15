@@ -42,6 +42,65 @@
 </div>
 {{end}}
 
+{{if .Progression}}
+<h2 class="text-xl font-semibold text-gray-800 mb-4">Lap Time Progression</h2>
+<div class="bg-white rounded-lg shadow p-4 mb-8">
+    <canvas id="chart-progression" height="200"></canvas>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const data = [
+        {{range .Progression}}
+        {date: "{{.Date}}", track: "{{.TrackName}}", ms: {{.LapTimeMs}}, time: "{{.LapTime}}"},
+        {{end}}
+    ];
+
+    // Group by track
+    const tracks = {};
+    data.forEach(d => {
+        if (!tracks[d.track]) tracks[d.track] = [];
+        tracks[d.track].push(d);
+    });
+
+    const colors = ['#dc2626', '#2563eb', '#16a34a', '#7c3aed', '#ea580c', '#0891b2'];
+    const datasets = Object.entries(tracks).map(([track, points], i) => ({
+        label: track,
+        data: points.map(p => ({x: p.date, y: p.ms / 1000})),
+        borderColor: colors[i % colors.length],
+        fill: false,
+        showLine: true,
+        tension: 0.1,
+    }));
+
+    new Chart('chart-progression', {
+        type: 'scatter',
+        data: { datasets },
+        options: {
+            responsive: true,
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => {
+                            const pt = Object.values(tracks)[ctx.datasetIndex][ctx.dataIndex];
+                            return pt.track + ': ' + pt.time;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { type: 'category', labels: [...new Set(data.map(d => d.date))],
+                     title: { display: true, text: 'Date' } },
+                y: { reverse: true, title: { display: true, text: 'Lap Time (seconds)' },
+                     ticks: { callback: v => { const m = Math.floor(v/60); const s = (v%60).toFixed(0); return m+':'+s.padStart(2,'0'); } }
+                }
+            },
+            elements: { point: { radius: 5, hoverRadius: 7 } }
+        }
+    });
+});
+</script>
+{{end}}
+
 <h2 class="text-xl font-semibold text-gray-800 mb-4">Sessions</h2>
 {{if .Sessions}}
 <div class="bg-white rounded-lg shadow table-wrap">

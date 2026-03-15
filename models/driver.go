@@ -65,6 +65,31 @@ func GetDriver(id int) (*Driver, error) {
 	return d, nil
 }
 
+func ListAllDrivers() ([]Driver, error) {
+	rows, err := DB.Query(context.Background(),
+		`SELECT d.id, d.name, COALESCE(d.car_class,''), COALESCE(d.car_generation,''),
+		        COALESCE(d.car_model,''), COALESCE(d.car_year,0),
+		        COALESCE(d.tire_brand,''), COALESCE(d.tire_model,''), d.mod_points
+		 FROM drivers d
+		 WHERE EXISTS (SELECT 1 FROM sessions s WHERE s.driver_id = d.id)
+		 ORDER BY d.name`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var drivers []Driver
+	for rows.Next() {
+		var d Driver
+		if err := rows.Scan(&d.ID, &d.Name, &d.CarClass, &d.CarGeneration,
+			&d.CarModel, &d.CarYear, &d.TireBrand, &d.TireModel, &d.ModPoints); err != nil {
+			return nil, err
+		}
+		drivers = append(drivers, d)
+	}
+	return drivers, nil
+}
+
 func UpdateDriverSetup(id int, carClass, generation, model, tireBrand, tireModel string, modPoints int) error {
 	_, err := DB.Exec(context.Background(),
 		`UPDATE drivers SET car_class = $2, car_generation = $3, car_model = $4,

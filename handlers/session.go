@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -183,14 +184,71 @@ func SessionView(w http.ResponseWriter, r *http.Request) {
 		splitHeaders = append(splitHeaders, fmt.Sprintf("S%d", i+1))
 	}
 
+	// Calculate theoretical best lap (best sector from any valid lap across all sessions)
+	bestSectors := make([]int, numSplits)
+	for i := range bestSectors {
+		bestSectors[i] = 999999999
+	}
+	var validTimes []int
+	for _, b := range blocks {
+		for _, l := range b.Laps {
+			if !l.IsValid {
+				continue
+			}
+			validTimes = append(validTimes, l.LapTimeMs)
+			for i, s := range l.SplitTimesMs {
+				if i < numSplits && s > 0 && s < bestSectors[i] {
+					bestSectors[i] = s
+				}
+			}
+		}
+	}
+
+	theoreticalMs := 0
+	var theoreticalSectors []string
+	allValid := true
+	for _, s := range bestSectors {
+		if s >= 999999999 {
+			allValid = false
+			break
+		}
+		theoreticalMs += s
+		theoreticalSectors = append(theoreticalSectors, FormatLapTime(s))
+	}
+	theoreticalLap := ""
+	if allValid && theoreticalMs > 0 {
+		theoreticalLap = FormatLapTime(theoreticalMs)
+	}
+
+	// Consistency: standard deviation of valid lap times
+	consistency := ""
+	if len(validTimes) >= 3 {
+		var sum float64
+		for _, t := range validTimes {
+			sum += float64(t)
+		}
+		mean := sum / float64(len(validTimes))
+		var variance float64
+		for _, t := range validTimes {
+			d := float64(t) - mean
+			variance += d * d
+		}
+		variance /= float64(len(validTimes))
+		stddev := int(math.Sqrt(variance))
+		consistency = fmt.Sprintf("%.1fs avg, +/- %s", mean/1000, FormatLapTime(stddev))
+	}
+
 	Templates["session.html"].ExecuteTemplate(w, "base", map[string]any{
-		"Session":        session,
-		"Event":          event,
-		"SessionBlocks":  blocks,
-		"BestLapID":      overallBestLapID,
-		"NumSplits":      numSplits,
-		"SplitHeaders":   splitHeaders,
-		"HasMultiple":    len(blocks) > 1,
+		"Session":            session,
+		"Event":              event,
+		"SessionBlocks":      blocks,
+		"BestLapID":          overallBestLapID,
+		"NumSplits":          numSplits,
+		"SplitHeaders":       splitHeaders,
+		"HasMultiple":        len(blocks) > 1,
+		"TheoreticalLap":     theoreticalLap,
+		"TheoreticalSectors": theoreticalSectors,
+		"Consistency":        consistency,
 	})
 }
 

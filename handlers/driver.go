@@ -42,9 +42,13 @@ func DriverPage(w http.ResponseWriter, r *http.Request) {
 		sessionData = append(sessionData, swb)
 	}
 
+	// Lap progression over time
+	progression, _ := models.GetLapProgression(id)
+
 	Templates["driver.html"].ExecuteTemplate(w, "base", map[string]any{
-		"Driver":   driver,
-		"Records":  records,
-		"Sessions": sessionData,
+		"Driver":      driver,
+		"Records":     records,
+		"Sessions":    sessionData,
+		"Progression": progression,
 	})
 }
