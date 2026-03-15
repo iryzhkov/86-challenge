@@ -1,7 +1,7 @@
 {{template "base" .}}
 {{define "content"}}
 {{with .Event}}
-<div class="mb-6 flex items-start justify-between">
+<div class="mb-6 flex flex-col sm:flex-row items-start justify-between gap-3">
     <div>
         <h1 class="text-2xl font-bold text-gray-900">{{.Name}}</h1>
         <div class="text-gray-500 text-sm mt-1 flex flex-wrap gap-4">
@@ -28,7 +28,7 @@
 {{range .Classes}}
 <div class="mb-8">
     <h2 class="text-lg font-semibold text-gray-800 mb-3">{{.Name}} Class</h2>
-    <div class="bg-white rounded-lg shadow overflow-hidden">
+    <div class="bg-white rounded-lg shadow overflow-hidden table-wrap">
         <table class="w-full text-sm">
             <thead class="bg-gray-50 text-gray-600 text-left">
                 <tr>

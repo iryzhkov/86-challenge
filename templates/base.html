@@ -23,21 +23,43 @@
         .split-event { color: #15803d; font-weight: 600; } /* green - event best split */
         .leaflet-pane, .leaflet-top, .leaflet-bottom,
         .leaflet-control { z-index: 30 !important; }
+        /* Mobile: horizontal scroll for tables */
+        .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .table-wrap table { min-width: 600px; }
+        /* Mobile: stack grids */
+        @media (max-width: 640px) {
+            .grid-cols-2 { grid-template-columns: 1fr !important; }
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
     <nav class="bg-gray-900 text-white shadow-lg">
         <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-            <a href="/" class="text-xl font-bold tracking-tight">
-                <span class="text-red-500">86</span> Challenge Telemetry
+            <a href="/" class="text-xl font-bold tracking-tight whitespace-nowrap">
+                <span class="text-red-500">86</span> Challenge
             </a>
-            <div class="flex gap-6 text-sm">
+            <!-- Desktop nav -->
+            <div class="hidden md:flex gap-6 text-sm">
                 <a href="/" class="hover:text-red-400">Home</a>
                 <a href="/upload" class="hover:text-red-400">Upload</a>
                 <a href="/events" class="hover:text-red-400">Events</a>
                 <a href="/sessions" class="hover:text-red-400">Sessions</a>
                 <a href="/leaderboard" class="hover:text-red-400">Leaderboard</a>
             </div>
+            <!-- Mobile hamburger -->
+            <button class="md:hidden text-white" onclick="document.getElementById('mobile-nav').classList.toggle('hidden')">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+            </button>
+        </div>
+        <!-- Mobile menu -->
+        <div id="mobile-nav" class="hidden md:hidden border-t border-gray-700 px-4 py-2 space-y-2 text-sm">
+            <a href="/" class="block py-1 hover:text-red-400">Home</a>
+            <a href="/upload" class="block py-1 hover:text-red-400">Upload</a>
+            <a href="/events" class="block py-1 hover:text-red-400">Events</a>
+            <a href="/sessions" class="block py-1 hover:text-red-400">Sessions</a>
+            <a href="/leaderboard" class="block py-1 hover:text-red-400">Leaderboard</a>
         </div>
     </nav>
     <main class="max-w-7xl mx-auto px-4 py-6">
