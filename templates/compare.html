@@ -452,11 +452,11 @@ function analyzeTurns(allData, lapMeta, leafletMap) {
                 else break;
             }
 
-            // Exit = speed recovery after apex
+            // Exit = speed recovery after apex, stop at next brake zone
             let exitIdx = minIdx;
             for (let j = minIdx + 1; j < Math.min(smoothSpeed.length, minIdx + 80); j++) {
+                if (smoothBrake[j] > 1 && j > minIdx + 3) break; // next brake zone
                 if (smoothSpeed[j] > smoothSpeed[exitIdx]) exitIdx = j;
-                if (j > minIdx + 5 && smoothSpeed[j] < smoothSpeed[j-1] - 3) break;
             }
 
             const entrySpeed = smoothSpeed[entryIdx];
@@ -469,24 +469,6 @@ function analyzeTurns(allData, lapMeta, leafletMap) {
             let bpIdx = zoneStart;
             for (let j = zoneStart; j <= minIdx; j++) {
                 if (smoothBrake[j] > 2) { bpIdx = j; break; }
-            }
-
-            // Merge if very close to previous turn
-            if (turns.length > 0) {
-                const prev = turns[turns.length - 1];
-                if (ref.distances[zoneStart] - prev.exitDist < 15) {
-                    if (minSpd < prev.apexSpeed) {
-                        prev.apexSpeed = minSpd;
-                        prev.apexDist = ref.distances[minIdx];
-                        prev.apexIdx = minIdx;
-                        prev.apexLat = ref.lats[minIdx];
-                        prev.apexLon = ref.lons[minIdx];
-                    }
-                    prev.exitDist = ref.distances[exitIdx];
-                    prev.exitSpeed = smoothSpeed[exitIdx];
-                    prev.exitIdx = exitIdx;
-                    continue;
-                }
             }
 
             turns.push({
