@@ -144,8 +144,22 @@ func EventPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func EventsListPage(w http.ResponseWriter, r *http.Request) {
-	events, _ := models.ListEvents()
+	currentEvent, _ := models.GetCurrentEvent()
+	upcoming, _ := models.ListUpcomingEvents(5)
+	pastWithData, _ := models.ListPastEventsWithSessions()
+
+	// Remove current event from past list
+	var filteredPast []models.Event
+	for _, e := range pastWithData {
+		if currentEvent != nil && e.ID == currentEvent.ID {
+			continue
+		}
+		filteredPast = append(filteredPast, e)
+	}
+
 	Templates["events.html"].ExecuteTemplate(w, "base", map[string]any{
-		"Events": events,
+		"CurrentEvent":   currentEvent,
+		"UpcomingEvents": upcoming,
+		"PastEvents":     filteredPast,
 	})
 }

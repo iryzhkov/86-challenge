@@ -244,6 +244,28 @@ func SearchEvents(trackID int, date string) ([]Event, error) {
 	return events, nil
 }
 
+// ListPastEventsWithSessions returns past events that have at least one session uploaded.
+func ListPastEventsWithSessions() ([]Event, error) {
+	rows, err := DB.Query(context.Background(),
+		fmt.Sprintf(`SELECT %s FROM events e JOIN tracks t ON t.id = e.track_id
+		 WHERE e.date < CURRENT_DATE
+		   AND EXISTS (SELECT 1 FROM sessions s WHERE s.event_id = e.id)
+		 ORDER BY e.date DESC`, eventSelectCols))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var events []Event
+	for rows.Next() {
+		e, err := scanEvent(rows.Scan)
+		if err != nil {
+			return nil, err
+		}
+		events = append(events, *e)
+	}
+	return events, nil
+}
+
 func ListTracks() ([]struct{ ID int; Name, Config string }, error) {
 	rows, err := DB.Query(context.Background(),
 		`SELECT id, name, config FROM tracks ORDER BY name, config`)

@@ -2,7 +2,40 @@
 {{define "content"}}
 <h1 class="text-2xl font-bold text-gray-900 mb-6">Events</h1>
 
-{{if .Events}}
+{{if .CurrentEvent}}
+<div class="bg-red-50 border border-red-200 rounded-lg p-6 mb-8">
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div>
+            <p class="text-red-700 text-sm font-semibold uppercase tracking-wide">Current Event</p>
+            <h2 class="text-xl font-bold text-gray-900 mt-1">{{.CurrentEvent.Name}}</h2>
+            <p class="text-gray-600">{{.CurrentEvent.TrackName}} {{.CurrentEvent.TrackConfig}} &mdash; {{.CurrentEvent.Date.Format "Jan 2, 2006"}}</p>
+            {{if .CurrentEvent.WeatherConditions}}
+            <p class="text-gray-500 text-sm">{{.CurrentEvent.WeatherConditions}} {{printf "%.0f" .CurrentEvent.WeatherTempF}}°F</p>
+            {{end}}
+        </div>
+        <div class="flex gap-3">
+            <a href="/event/{{.CurrentEvent.ID}}" class="bg-white text-gray-800 px-4 py-2 rounded-lg border hover:bg-gray-50">View</a>
+            <a href="/upload?event={{.CurrentEvent.ID}}" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">Upload Session</a>
+        </div>
+    </div>
+</div>
+{{end}}
+
+{{if .UpcomingEvents}}
+<h2 class="text-lg font-semibold text-gray-800 mb-3">Upcoming</h2>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+    {{range .UpcomingEvents}}
+    <div class="bg-white rounded-lg shadow p-4 border-l-4 border-blue-400">
+        <p class="font-semibold text-gray-900">{{.Name}}</p>
+        <p class="text-sm text-gray-500">{{.TrackName}} {{.TrackConfig}}</p>
+        <p class="text-sm text-gray-400 mt-1">{{.Date.Format "Jan 2, 2006"}}{{if .Organizer}} &mdash; {{.Organizer}}{{end}}</p>
+    </div>
+    {{end}}
+</div>
+{{end}}
+
+{{if .PastEvents}}
+<h2 class="text-lg font-semibold text-gray-800 mb-3">Past Events with Results</h2>
 <div class="bg-white rounded-lg shadow table-wrap">
     <table class="w-full text-sm">
         <thead class="bg-gray-50 text-gray-600 text-left">
@@ -10,29 +43,28 @@
                 <th class="px-4 py-3">Event</th>
                 <th class="px-4 py-3">Track</th>
                 <th class="px-4 py-3">Date</th>
-                <th class="px-4 py-3">Organizer</th>
                 <th class="px-4 py-3">Weather</th>
             </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
-            {{range .Events}}
+            {{range .PastEvents}}
             <tr class="hover:bg-gray-50 cursor-pointer" onclick="window.location='/event/{{.ID}}'">
                 <td class="px-4 py-3 font-medium">{{.Name}}</td>
                 <td class="px-4 py-3">{{.TrackName}} {{.TrackConfig}}</td>
                 <td class="px-4 py-3 text-gray-500">{{.Date.Format "Jan 2, 2006"}}</td>
-                <td class="px-4 py-3 text-gray-500">{{.Organizer}}</td>
                 <td class="px-4 py-3 text-gray-500">
-                    {{if .WeatherConditions}}{{.WeatherConditions}}{{end}}
-                    {{if .WeatherTempF}} {{printf "%.0f" .WeatherTempF}}°F{{end}}
+                    {{if .WeatherConditions}}{{.WeatherConditions}} {{printf "%.0f" .WeatherTempF}}°F{{end}}
                 </td>
             </tr>
             {{end}}
         </tbody>
     </table>
 </div>
-{{else}}
-<div class="bg-white rounded-lg shadow p-8 text-center text-gray-500">
-    <p>No events found. Run the scraper to import events from 86challenge.us.</p>
-</div>
 {{end}}
+
+{{if not .CurrentEvent}}{{if not .UpcomingEvents}}{{if not .PastEvents}}
+<div class="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+    No events yet. Events are imported from 86challenge.us on startup.
+</div>
+{{end}}{{end}}{{end}}
 {{end}}
