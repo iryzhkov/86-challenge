@@ -385,15 +385,22 @@ Promise.all(lapMeta.map(m => fetch('/api/telemetry/' + m.id).then(r => r.json())
         // Invalidate map size after layout settles
         setTimeout(() => map.invalidateSize(), 200);
 
-        // === Turn Detection & Comparison ===
-        analyzeTurns(allData, lapMeta, step);
+        // === Turn Detection & Comparison (only for 2-lap comparison) ===
+        if (allData.length === 2) {
+            analyzeTurns(allData, lapMeta, map);
+        }
     });
 
-function analyzeTurns(allData, lapMeta, step) {
-    if (allData.length < 2) return;
+function analyzeTurns(allData, lapMeta, leafletMap) {
+    const KMH_TO_MPH = 0.621371;
+    const M_TO_FT = 3.28084;
+    const ref = allData[0], comp = allData[1];
+    const samePerson = lapMeta[0].driver === lapMeta[1].driver;
 
-    const ref = allData[0];
-    // Smooth speed for turn detection
+    // Labels for the two laps
+    const fasterLabel = samePerson ? 'your faster lap' : lapMeta[0].driver;
+    const slowerLabel = samePerson ? 'your slower lap' : lapMeta[1].driver;
+
     function smooth(arr, w) {
         return arr.map((_, i) => {
             const lo = Math.max(0, i - w), hi = Math.min(arr.length, i + w + 1);
@@ -405,168 +412,191 @@ function analyzeTurns(allData, lapMeta, step) {
 
     const smoothSpeed = smooth(ref.speeds, 5);
 
-    // Find turns: local min in speed where drop from preceding max > 15 km/h
+    // Detect turns: local speed minima with >15 km/h drop
     const turns = [];
-    let lastMax = 0, lastMaxDist = 0;
-    let inDrop = false, minSpeed = Infinity, minDist = 0, entryDist = 0, entrySpeed = 0;
+    let lastMax = 0, entryDist = 0, entrySpeed = 0, entryIdx = 0;
+    let inDrop = false, minSpeed = Infinity, minDist = 0, minIdx = 0;
 
     for (let i = 1; i < smoothSpeed.length - 1; i++) {
         const spd = smoothSpeed[i];
-        const dist = ref.distances[i];
 
-        // Track local maxima
         if (spd > smoothSpeed[i-1] && spd > smoothSpeed[i+1] && spd > lastMax * 0.9) {
             if (inDrop && lastMax - minSpeed > 15) {
-                // Found a turn: entry at lastMax, apex at minSpeed
-                // Find exit: next local max after the min
-                let exitSpeed = minSpeed, exitDist = minDist;
+                let exitSpeed = minSpeed, exitDist = minDist, exitIdx = minIdx;
                 for (let j = i; j < Math.min(smoothSpeed.length - 1, i + 100); j++) {
                     if (smoothSpeed[j] > smoothSpeed[j-1] && smoothSpeed[j] > smoothSpeed[j+1] && smoothSpeed[j] > minSpeed + 10) {
-                        exitSpeed = smoothSpeed[j];
-                        exitDist = ref.distances[j];
+                        exitSpeed = smoothSpeed[j]; exitDist = ref.distances[j]; exitIdx = j;
                         break;
                     }
                 }
                 turns.push({
-                    entryDist, entrySpeed: Math.round(entrySpeed),
-                    apexDist: minDist, apexSpeed: Math.round(minSpeed),
-                    exitDist, exitSpeed: Math.round(exitSpeed),
+                    entryDist, entrySpeed, entryIdx,
+                    apexDist: minDist, apexSpeed: minSpeed, apexIdx: minIdx,
+                    exitDist, exitSpeed, exitIdx,
+                    apexLat: ref.lats[minIdx], apexLon: ref.lons[minIdx],
                 });
             }
-            lastMax = spd;
-            lastMaxDist = dist;
-            entryDist = dist;
-            entrySpeed = spd;
-            inDrop = false;
-            minSpeed = Infinity;
+            lastMax = spd; entryDist = ref.distances[i]; entrySpeed = spd; entryIdx = i;
+            inDrop = false; minSpeed = Infinity;
         }
-
-        // Track drops
         if (spd < lastMax - 10) inDrop = true;
-        if (inDrop && spd < minSpeed) {
-            minSpeed = spd;
-            minDist = dist;
-        }
+        if (inDrop && spd < minSpeed) { minSpeed = spd; minDist = ref.distances[i]; minIdx = i; }
     }
 
     if (turns.length === 0) return;
 
-    // For each turn, extract metrics from all laps
-    function getSpeedAtDist(data, targetDist) {
+    // Mark turns on the map
+    turns.forEach((t, i) => {
+        L.circleMarker([t.apexLat, t.apexLon], {
+            radius: 10, color: '#1f2937', fillColor: '#fff', fillOpacity: 0.9, weight: 2
+        }).bindTooltip('T' + (i+1), {permanent: true, direction: 'center', className: 'turn-label'})
+          .addTo(leafletMap);
+    });
+
+    // Extract metrics per turn per lap
+    function getSpeedMph(data, targetDist) {
         let best = 0, bestDiff = Infinity;
         for (let i = 0; i < data.distances.length; i++) {
             const diff = Math.abs(data.distances[i] - targetDist);
             if (diff < bestDiff) { bestDiff = diff; best = data.speeds[i]; }
         }
-        return Math.round(best);
+        return Math.round(best * KMH_TO_MPH);
     }
 
     function getBrakePointDist(data, entryDist, apexDist) {
-        // Find where brake > 5% first occurs between entry and apex
         for (let i = 0; i < data.distances.length; i++) {
             if (data.distances[i] >= entryDist && data.distances[i] <= apexDist) {
-                if (data.brake[i] > 5) return Math.round(data.distances[i]);
+                if (data.brake[i] > 5) return data.distances[i];
             }
         }
-        return Math.round(entryDist);
+        return entryDist;
+    }
+
+    // Estimate time between two distances using speed data
+    function timeInRange(data, d1, d2) {
+        let t = 0;
+        for (let i = 1; i < data.distances.length; i++) {
+            if (data.distances[i] < d1) continue;
+            if (data.distances[i] > d2) break;
+            const dd = data.distances[i] - data.distances[i-1];
+            const spd = data.speeds[i] / 3.6;
+            if (spd > 0) t += dd / spd;
+        }
+        return t;
     }
 
     const turnData = turns.map((turn, ti) => {
-        const perLap = allData.map((data, li) => ({
-            driver: lapMeta[li].driver,
-            color: lapMeta[li].color,
-            entry: getSpeedAtDist(data, turn.entryDist),
-            apex: getSpeedAtDist(data, turn.apexDist),
-            exit: getSpeedAtDist(data, turn.exitDist),
-            brakePoint: getBrakePointDist(data, turn.entryDist, turn.apexDist),
-        }));
-        return { num: ti + 1, turn, perLap };
+        const laps = [ref, comp].map((data, li) => {
+            const bp = getBrakePointDist(data, turn.entryDist, turn.apexDist);
+            return {
+                entry: getSpeedMph(data, turn.entryDist),
+                apex: getSpeedMph(data, turn.apexDist),
+                exit: getSpeedMph(data, turn.exitDist),
+                brakeDist: bp,
+                turnTime: timeInRange(data, turn.entryDist, turn.exitDist),
+            };
+        });
+        return { num: ti + 1, turn, laps };
     });
 
-    // Find biggest differences for summary
+    // Build insights
     const insights = [];
-    const refDriver = lapMeta[0].driver;
-
     for (const td of turnData) {
-        for (let li = 1; li < td.perLap.length; li++) {
-            const r = td.perLap[0], c = td.perLap[li];
-            const entryDiff = r.entry - c.entry;
-            const apexDiff = r.apex - c.apex;
-            const brakeDiff = r.brakePoint - c.brakePoint; // negative = ref brakes later
+        const r = td.laps[0], c = td.laps[1];
+        const timeDiff = c.turnTime - r.turnTime; // positive = slower lost time
+        const timeStr = Math.abs(timeDiff) >= 0.01 ? ` (~${Math.abs(timeDiff).toFixed(2)}s)` : '';
+        const gainLoss = timeDiff > 0 ? '&#x1f7e2;' : '&#x1f534;'; // green/red dot
 
-            if (Math.abs(entryDiff) > 5) {
-                const faster = entryDiff > 0 ? refDriver : c.driver;
-                const slower = entryDiff > 0 ? c.driver : refDriver;
-                insights.push({
-                    magnitude: Math.abs(entryDiff),
-                    text: `<strong>Turn ${td.num}</strong>: ${faster} enters ${Math.abs(entryDiff)} km/h faster than ${slower}`,
-                    color: entryDiff > 0 ? lapMeta[0].color : lapMeta[li].color,
-                });
-            }
-            if (Math.abs(apexDiff) > 5) {
-                const faster = apexDiff > 0 ? refDriver : c.driver;
-                const slower = apexDiff > 0 ? c.driver : refDriver;
-                insights.push({
-                    magnitude: Math.abs(apexDiff),
-                    text: `<strong>Turn ${td.num}</strong>: ${faster} carries ${Math.abs(apexDiff)} km/h more through the apex than ${slower}`,
-                    color: apexDiff > 0 ? lapMeta[0].color : lapMeta[li].color,
-                });
-            }
-            if (Math.abs(brakeDiff) > 10) {
-                const later = brakeDiff < 0 ? refDriver : c.driver;
-                const earlier = brakeDiff < 0 ? c.driver : refDriver;
-                insights.push({
-                    magnitude: Math.abs(brakeDiff) / 5,
-                    text: `<strong>Turn ${td.num}</strong>: ${later} brakes ${Math.abs(brakeDiff)}m later than ${earlier}`,
-                    color: brakeDiff < 0 ? lapMeta[0].color : lapMeta[li].color,
-                });
-            }
+        const entryDiff = r.entry - c.entry;
+        if (Math.abs(entryDiff) > 3) {
+            const who = entryDiff > 0 ? fasterLabel : slowerLabel;
+            insights.push({
+                mag: Math.abs(timeDiff),
+                html: `<strong>T${td.num}</strong>: ${who} enters ${Math.abs(entryDiff)} mph faster${timeStr}`
+            });
+        }
+
+        const apexDiff = r.apex - c.apex;
+        if (Math.abs(apexDiff) > 3) {
+            const who = apexDiff > 0 ? fasterLabel : slowerLabel;
+            insights.push({
+                mag: Math.abs(timeDiff),
+                html: `<strong>T${td.num}</strong>: ${who} carries ${Math.abs(apexDiff)} mph more through the apex${timeStr}`
+            });
+        }
+
+        const brakeFt = Math.round((r.brakeDist - c.brakeDist) * M_TO_FT);
+        if (Math.abs(brakeFt) > 15) {
+            const who = brakeFt < 0 ? fasterLabel : slowerLabel;
+            insights.push({
+                mag: Math.abs(brakeFt) / 10,
+                html: `<strong>T${td.num}</strong>: ${who} brakes ${Math.abs(brakeFt)} ft later${timeStr}`
+            });
+        }
+
+        const exitDiff = r.exit - c.exit;
+        if (Math.abs(exitDiff) > 3) {
+            const who = exitDiff > 0 ? fasterLabel : slowerLabel;
+            insights.push({
+                mag: Math.abs(timeDiff),
+                html: `<strong>T${td.num}</strong>: ${who} exits ${Math.abs(exitDiff)} mph faster${timeStr}`
+            });
         }
     }
 
-    // Sort by magnitude, show top insights
-    insights.sort((a, b) => b.magnitude - a.magnitude);
-    const topInsights = insights.slice(0, 6);
+    insights.sort((a, b) => b.mag - a.mag);
 
-    if (topInsights.length > 0) {
-        const summaryDiv = document.getElementById('turn-summary');
-        const contentDiv = document.getElementById('turn-summary-content');
-        summaryDiv.classList.remove('hidden');
-        contentDiv.innerHTML = topInsights.map(ins =>
-            `<div class="flex items-start gap-2">
-                <div class="w-3 h-3 rounded-full mt-1 flex-shrink-0" style="background:${ins.color}"></div>
-                <p>${ins.text}</p>
-            </div>`
-        ).join('');
+    if (insights.length > 0) {
+        const div = document.getElementById('turn-summary');
+        div.classList.remove('hidden');
+        document.getElementById('turn-summary-content').innerHTML =
+            (samePerson ? '<p class="text-gray-500 mb-2">Comparing your faster lap vs your slower lap:</p>' : '') +
+            insights.slice(0, 8).map(ins =>
+                `<div class="flex items-start gap-2"><p>${ins.html}</p></div>`
+            ).join('');
     }
 
-    // Build turn detail table
+    // Detail table (imperial)
     if (turnData.length > 0) {
         const tableDiv = document.getElementById('turn-table');
         const table = document.getElementById('turn-detail-table');
         tableDiv.classList.remove('hidden');
 
+        const l0 = samePerson ? 'Faster Lap' : `<span style="color:${lapMeta[0].color}">${lapMeta[0].driver}</span>`;
+        const l1 = samePerson ? 'Slower Lap' : `<span style="color:${lapMeta[1].color}">${lapMeta[1].driver}</span>`;
+
         let html = `<thead class="bg-gray-50 text-gray-600 text-left"><tr>
-            <th class="px-3 py-2">Turn</th>`;
-        for (const m of lapMeta) {
-            html += `<th class="px-3 py-2" colspan="3"><span style="color:${m.color}">${m.driver}</span></th>`;
-        }
-        html += `</tr><tr><th class="px-3 py-2"></th>`;
-        for (let i = 0; i < lapMeta.length; i++) {
-            html += `<th class="px-3 py-2 text-xs font-normal">Entry</th>
-                     <th class="px-3 py-2 text-xs font-normal">Apex</th>
-                     <th class="px-3 py-2 text-xs font-normal">Exit</th>`;
-        }
-        html += `</tr></thead><tbody class="divide-y divide-gray-100">`;
+            <th class="px-3 py-2">Turn</th>
+            <th class="px-3 py-2" colspan="4">${l0}</th>
+            <th class="px-3 py-2" colspan="4">${l1}</th>
+            <th class="px-3 py-2">Time +/-</th>
+        </tr><tr><th class="px-3 py-2"></th>
+            <th class="px-3 py-2 text-xs font-normal">Entry</th>
+            <th class="px-3 py-2 text-xs font-normal">Apex</th>
+            <th class="px-3 py-2 text-xs font-normal">Exit</th>
+            <th class="px-3 py-2 text-xs font-normal">Brake</th>
+            <th class="px-3 py-2 text-xs font-normal">Entry</th>
+            <th class="px-3 py-2 text-xs font-normal">Apex</th>
+            <th class="px-3 py-2 text-xs font-normal">Exit</th>
+            <th class="px-3 py-2 text-xs font-normal">Brake</th>
+            <th class="px-3 py-2 text-xs font-normal"></th>
+        </tr></thead><tbody class="divide-y divide-gray-100">`;
 
         for (const td of turnData) {
-            html += `<tr>`;
-            html += `<td class="px-3 py-1.5 font-medium text-gray-600">T${td.num}</td>`;
-            for (const lp of td.perLap) {
-                html += `<td class="px-3 py-1.5 font-mono text-xs">${lp.entry}</td>`;
-                html += `<td class="px-3 py-1.5 font-mono text-xs">${lp.apex}</td>`;
-                html += `<td class="px-3 py-1.5 font-mono text-xs">${lp.exit}</td>`;
+            const timeDiff = td.laps[1].turnTime - td.laps[0].turnTime;
+            const timeColor = timeDiff > 0.05 ? 'text-green-600' : timeDiff < -0.05 ? 'text-red-600' : 'text-gray-400';
+            const timeSign = timeDiff > 0 ? '+' : '';
+
+            html += `<tr>
+                <td class="px-3 py-1.5 font-medium text-gray-600">T${td.num}</td>`;
+            for (const lp of td.laps) {
+                const bpFt = Math.round((lp.brakeDist - td.turn.entryDist) * M_TO_FT);
+                html += `<td class="px-3 py-1.5 font-mono text-xs">${lp.entry}</td>
+                         <td class="px-3 py-1.5 font-mono text-xs">${lp.apex}</td>
+                         <td class="px-3 py-1.5 font-mono text-xs">${lp.exit}</td>
+                         <td class="px-3 py-1.5 font-mono text-xs text-gray-400">${bpFt}ft</td>`;
             }
+            html += `<td class="px-3 py-1.5 font-mono text-xs ${timeColor}">${timeSign}${timeDiff.toFixed(2)}s</td>`;
             html += `</tr>`;
         }
         html += `</tbody>`;
