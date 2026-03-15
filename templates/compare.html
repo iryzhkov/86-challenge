@@ -409,25 +409,37 @@ const KNOWN_TURNS = {
     ],
     // Sonoma: will be populated from telemetry data when available
     'Thunderhill|East Cyclone': [
-        {num: 1,  name: 'T1',         lat: 39.537373, lon: -122.331246}, // ~200m first right
-        {num: 2,  name: 'T2',         lat: 39.535827, lon: -122.327451}, // ~600m left
-        {num: 3,  name: 'T3',         lat: 39.537928, lon: -122.329106}, // ~1000m right
-        {num: 4,  name: 'T4',         lat: 39.541066, lon: -122.329392}, // ~1400m hairpin
-        {num: 5,  name: 'T5 Cyclone', lat: 39.543117, lon: -122.328556}, // ~1700m cyclone
-        {num: 6,  name: 'T6',         lat: 39.542509, lon: -122.336283}, // ~2600m left
-        {num: 7,  name: 'T7',         lat: 39.539003, lon: -122.335554}, // ~3000m right
-        {num: 8,  name: 'T8',         lat: 39.538356, lon: -122.333360}, // ~3300m left
-        {num: 9,  name: 'T9',         lat: 39.543649, lon: -122.332836}, // ~3900m hairpin
+        {num: 1,  name: 'T1',          lat: 39.536582, lon: -122.330782}, // ~298m right
+        {num: 2,  name: 'T2',          lat: 39.535964, lon: -122.327063}, // ~638m right into infield
+        {num: 3,  name: 'T3',          lat: 39.536763, lon: -122.326646}, // ~738m right hairpin
+        {num: 4,  name: 'T4',          lat: 39.538636, lon: -122.329485}, // ~1090m left
+        {num: 5,  name: 'T5',          lat: 39.539707, lon: -122.328658}, // ~1232m right
+        {num: 5.5,name: 'T5a Cyclone', lat: 39.541467, lon: -122.329942}, // ~1468m cyclone entry
+        {num: 6,  name: 'T6',          lat: 39.542178, lon: -122.329714}, // ~1553m cyclone exit
+        {num: 7,  name: 'T7',          lat: 39.543263, lon: -122.328534}, // ~1716m right
+        {num: 8,  name: 'T8',          lat: 39.544939, lon: -122.330668}, // ~1988m fast right
+        {num: 9,  name: 'T9',          lat: 39.544943, lon: -122.333386}, // ~2225m sweeper
+        {num: 10, name: 'T10',         lat: 39.542655, lon: -122.336268}, // ~2584m right
+        {num: 11, name: 'T11',         lat: 39.538136, lon: -122.335237}, // ~3101m right
+        {num: 12, name: 'T12',         lat: 39.537965, lon: -122.333554}, // ~3253m hairpin
+        {num: 13, name: 'T13',         lat: 39.544014, lon: -122.332502}, // ~3951m left hairpin
+        {num: 14, name: 'T14',         lat: 39.543423, lon: -122.331293}, // ~4085m left
     ],
     'Thunderhill|East Bypass': [
-        {num: 1,  name: 'T1',  lat: 39.537373, lon: -122.331246},
-        {num: 2,  name: 'T2',  lat: 39.535827, lon: -122.327451},
-        {num: 3,  name: 'T3',  lat: 39.537928, lon: -122.329106},
-        {num: 4,  name: 'T4',  lat: 39.541066, lon: -122.329392},
-        {num: 5,  name: 'T5',  lat: 39.542509, lon: -122.336283},
-        {num: 6,  name: 'T6',  lat: 39.539003, lon: -122.335554},
-        {num: 7,  name: 'T7',  lat: 39.538356, lon: -122.333360},
-        {num: 8,  name: 'T8',  lat: 39.543649, lon: -122.332836},
+        {num: 1,  name: 'T1',  lat: 39.536582, lon: -122.330782},
+        {num: 2,  name: 'T2',  lat: 39.535964, lon: -122.327063},
+        {num: 3,  name: 'T3',  lat: 39.536763, lon: -122.326646},
+        {num: 4,  name: 'T4',  lat: 39.538636, lon: -122.329485},
+        {num: 5,  name: 'T5',  lat: 39.539707, lon: -122.328658},
+        {num: 6,  name: 'T6',  lat: 39.542178, lon: -122.329714},
+        {num: 7,  name: 'T7',  lat: 39.543263, lon: -122.328534},
+        {num: 8,  name: 'T8',  lat: 39.544939, lon: -122.330668},
+        {num: 9,  name: 'T9',  lat: 39.544943, lon: -122.333386},
+        {num: 10, name: 'T10', lat: 39.542655, lon: -122.336268},
+        {num: 11, name: 'T11', lat: 39.538136, lon: -122.335237},
+        {num: 12, name: 'T12', lat: 39.537965, lon: -122.333554},
+        {num: 13, name: 'T13', lat: 39.544014, lon: -122.332502},
+        {num: 14, name: 'T14', lat: 39.543423, lon: -122.331293},
     ],
 };
 
@@ -548,6 +560,58 @@ function analyzeTurns(allData, lapMeta, leafletMap, trackKey) {
                 entryDist: ref.distances[entryIdx], entrySpeed: smoothSpeed[entryIdx], entryIdx,
                 brakeDist: ref.distances[i],
                 apexDist: ref.distances[i], apexSpeed: spd, apexIdx: i,
+                exitDist: ref.distances[exitIdx], exitSpeed: smoothSpeed[exitIdx], exitIdx,
+                apexLat: ref.lats[i], apexLon: ref.lons[i],
+            });
+        }
+    }
+
+    // Third pass: heading-based turn detection
+    // Compute heading from GPS and find regions of significant direction change
+    function gpsBearing(lat1, lon1, lat2, lon2) {
+        const dlon = (lon2-lon1)*Math.PI/180;
+        const la1 = lat1*Math.PI/180, la2 = lat2*Math.PI/180;
+        const x = Math.sin(dlon)*Math.cos(la2);
+        const y = Math.cos(la1)*Math.sin(la2) - Math.sin(la1)*Math.cos(la2)*Math.cos(dlon);
+        return Math.atan2(x, y) * 180 / Math.PI;
+    }
+    const headings = [0];
+    for (let i = 1; i < ref.distances.length; i++) {
+        headings.push(gpsBearing(ref.lats[i-1], ref.lons[i-1], ref.lats[i], ref.lons[i]));
+    }
+    // Cumulative heading change over a window
+    const hw = 15;
+    for (let i = hw; i < ref.distances.length - hw; i++) {
+        let totalChange = 0;
+        for (let j = i - hw; j < i + hw; j++) {
+            let dh = headings[j+1] - headings[j];
+            while (dh > 180) dh -= 360;
+            while (dh < -180) dh += 360;
+            totalChange += dh;
+        }
+        if (Math.abs(totalChange) > 25) {
+            const dist = ref.distances[i];
+            const covered = turns.some(t => Math.abs(dist - t.apexDist) < 80);
+            if (covered) continue;
+
+            let entryIdx = i;
+            for (let j = i-1; j >= Math.max(0, i-30); j--) {
+                if (smoothSpeed[j] >= smoothSpeed[entryIdx]) entryIdx = j; else break;
+            }
+            let exitIdx = i;
+            for (let j = i+1; j < Math.min(smoothSpeed.length, i+30); j++) {
+                if (smoothSpeed[j] > smoothSpeed[exitIdx]) exitIdx = j;
+                if (smoothBrake[j] > 1 && j > i+3) break;
+            }
+
+            // Deduplicate within 80m
+            const tooClose = turns.some(t => Math.abs(dist - t.apexDist) < 80);
+            if (tooClose) continue;
+
+            turns.push({
+                entryDist: ref.distances[entryIdx], entrySpeed: smoothSpeed[entryIdx], entryIdx,
+                brakeDist: ref.distances[i],
+                apexDist: ref.distances[i], apexSpeed: smoothSpeed[i], apexIdx: i,
                 exitDist: ref.distances[exitIdx], exitSpeed: smoothSpeed[exitIdx], exitIdx,
                 apexLat: ref.lats[i], apexLon: ref.lons[i],
             });
