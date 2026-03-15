@@ -12,7 +12,6 @@ RUN apk --no-cache add ca-certificates
 WORKDIR /app
 COPY --from=builder /app/86-challenge .
 COPY --from=builder /app/templates ./templates
-COPY --from=builder /app/static ./static
 
 EXPOSE 8086
 CMD ["./86-challenge"]
