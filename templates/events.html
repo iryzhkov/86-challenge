@@ -36,29 +36,17 @@
 
 {{if .PastEvents}}
 <h2 class="text-lg font-semibold text-gray-800 mb-3">Past Events with Results</h2>
-<div class="bg-white rounded-lg shadow table-wrap">
-    <table class="w-full text-sm">
-        <thead class="bg-gray-50 text-gray-600 text-left">
-            <tr>
-                <th class="px-4 py-3">Event</th>
-                <th class="px-4 py-3">Track</th>
-                <th class="px-4 py-3">Date</th>
-                <th class="px-4 py-3">Weather</th>
-            </tr>
-        </thead>
-        <tbody class="divide-y divide-gray-100">
-            {{range .PastEvents}}
-            <tr class="hover:bg-gray-50 cursor-pointer" onclick="window.location='/event/{{.ID}}'">
-                <td class="px-4 py-3 font-medium">{{.Name}}</td>
-                <td class="px-4 py-3">{{.TrackName}} {{.TrackConfig}}</td>
-                <td class="px-4 py-3 text-gray-500">{{.Date.Format "Jan 2, 2006"}}</td>
-                <td class="px-4 py-3 text-gray-500">
-                    {{if .WeatherConditions}}{{.WeatherConditions}} {{printf "%.0f" .WeatherTempF}}°F{{end}}
-                </td>
-            </tr>
-            {{end}}
-        </tbody>
-    </table>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+    {{range .PastEvents}}
+    <a href="/event/{{.ID}}" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
+        <p class="font-semibold text-gray-900">{{.Name}}</p>
+        <p class="text-sm text-gray-500">{{.TrackName}} {{.TrackConfig}}</p>
+        <p class="text-sm text-gray-400 mt-1">{{.Date.Format "Jan 2, 2006"}}{{if .Organizer}} &mdash; {{.Organizer}}{{end}}</p>
+        {{if .WeatherConditions}}
+        <p class="text-xs text-gray-400 mt-1">{{.WeatherConditions}} {{printf "%.0f" .WeatherTempF}}°F</p>
+        {{end}}
+    </a>
+    {{end}}
 </div>
 {{end}}
 
