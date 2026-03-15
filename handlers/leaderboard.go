@@ -21,7 +21,7 @@ type LeaderboardEntry struct {
 	TireModel   string
 	TrackName   string
 	TrackConfig string
-	SessionID   int
+	SessionID   string
 	LapID       int
 }
 
