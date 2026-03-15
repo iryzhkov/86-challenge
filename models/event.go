@@ -211,7 +211,7 @@ func RecentPastEvents(limit int) ([]Event, error) {
 }
 
 func SearchEvents(trackID int, date string) ([]Event, error) {
-	query := fmt.Sprintf(`SELECT %s FROM events e JOIN tracks t ON t.id = e.track_id WHERE 1=1`, eventSelectCols)
+	query := fmt.Sprintf(`SELECT %s FROM events e JOIN tracks t ON t.id = e.track_id WHERE e.date <= CURRENT_DATE`, eventSelectCols)
 	args := []any{}
 	argN := 1
 
