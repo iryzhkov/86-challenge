@@ -3,6 +3,7 @@ package handlers
 import (
 	"html/template"
 	"net/http"
+	"time"
 
 	"github.com/iryzhkov/86-challenge/models"
 )
@@ -33,15 +34,36 @@ func Home(w http.ResponseWriter, r *http.Request) {
 		data = append(data, swb)
 	}
 
-	// Current event: today's event, or the most recent past event (until the next one starts)
+	// Current event: most recent past event
 	currentEvent, _ := models.GetCurrentEvent()
 
-	// Upcoming events (excluding the current one)
-	upcoming, _ := models.ListUpcomingEvents(5)
+	// Upcoming events: up to 2, only within 3 weeks
+	allUpcoming, _ := models.ListUpcomingEvents(10)
+	threeWeeks := time.Now().AddDate(0, 0, 21)
+	var upcoming []models.Event
+	for _, e := range allUpcoming {
+		if e.Date.Before(threeWeeks) && len(upcoming) < 2 {
+			upcoming = append(upcoming, e)
+		}
+	}
+
+	// Recent past events: last 2, excluding the current one
+	var recentPast []models.Event
+	if pastEvents, err := models.RecentPastEvents(3); err == nil {
+		for _, e := range pastEvents {
+			if currentEvent != nil && e.ID == currentEvent.ID {
+				continue
+			}
+			if len(recentPast) < 2 {
+				recentPast = append(recentPast, e)
+			}
+		}
+	}
 
 	Templates["home.html"].ExecuteTemplate(w, "base", map[string]any{
 		"RecentSessions": data,
 		"CurrentEvent":   currentEvent,
 		"UpcomingEvents": upcoming,
+		"RecentPast":     recentPast,
 	})
 }

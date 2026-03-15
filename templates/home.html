@@ -35,12 +35,27 @@
 
 {{if .UpcomingEvents}}
 <h2 class="text-xl font-semibold text-gray-800 mb-4">Upcoming Events</h2>
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
     {{range .UpcomingEvents}}
-    <a href="/event/{{.ID}}" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
+    <a href="/event/{{.ID}}" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition border-l-4 border-blue-400">
         <p class="font-semibold text-gray-900">{{.Name}}</p>
         <p class="text-sm text-gray-500">{{.TrackName}} {{.TrackConfig}}</p>
         <p class="text-sm text-gray-400 mt-1">{{.Date.Format "Jan 2, 2006"}}{{if .Organizer}} &mdash; {{.Organizer}}{{end}}</p>
+    </a>
+    {{end}}
+</div>
+{{end}}
+
+{{if .RecentPast}}
+<h2 class="text-xl font-semibold text-gray-800 mb-4">Recent Events</h2>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+    {{range .RecentPast}}
+    <a href="/event/{{.ID}}" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
+        <p class="font-semibold text-gray-900">{{.Name}}</p>
+        <p class="text-sm text-gray-500">{{.TrackName}} {{.TrackConfig}}</p>
+        <p class="text-sm text-gray-400 mt-1">{{.Date.Format "Jan 2, 2006"}}
+            {{if .WeatherConditions}} &mdash; {{.WeatherConditions}} {{printf "%.0f" .WeatherTempF}}°F{{end}}
+        </p>
     </a>
     {{end}}
 </div>
