@@ -274,6 +274,7 @@ func PersonalBestLap(driverID, trackID int) (int, error) {
 type DriverTrackRecord struct {
 	TrackName   string
 	TrackConfig string
+	TrackID     int
 	CarClass    string
 	BestLapMs   int
 	BestLapTime string
@@ -285,7 +286,7 @@ type DriverTrackRecord struct {
 func DriverTrackRecords(driverID int) ([]DriverTrackRecord, error) {
 	rows, err := DB.Query(context.Background(),
 		`SELECT DISTINCT ON (t.name, t.config, s.car_class)
-			t.name, t.config, COALESCE(s.car_class,''), l.lap_time_ms, s.id, l.id
+			t.name, t.config, t.id, COALESCE(s.car_class,''), l.lap_time_ms, s.id, l.id
 		 FROM laps l
 		 JOIN sessions s ON s.id = l.session_id
 		 JOIN tracks t ON t.id = s.track_id
@@ -299,7 +300,7 @@ func DriverTrackRecords(driverID int) ([]DriverTrackRecord, error) {
 	var records []DriverTrackRecord
 	for rows.Next() {
 		var r DriverTrackRecord
-		if err := rows.Scan(&r.TrackName, &r.TrackConfig, &r.CarClass, &r.BestLapMs, &r.SessionID, &r.LapID); err != nil {
+		if err := rows.Scan(&r.TrackName, &r.TrackConfig, &r.TrackID, &r.CarClass, &r.BestLapMs, &r.SessionID, &r.LapID); err != nil {
 			continue
 		}
 		// Format inline

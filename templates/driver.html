@@ -33,7 +33,7 @@
                 </td>
                 <td class="px-4 py-3 font-mono font-semibold text-green-700">{{.BestLapTime}}</td>
                 <td class="px-4 py-3">
-                    <button class="text-xs text-blue-600 hover:underline" data-compare-lap="{{.LapID}}" onclick="event.stopPropagation(); addToCompare({{.LapID}})">Compare</button>
+                    <button class="text-xs text-blue-600 hover:underline" data-compare-lap="{{.LapID}}" onclick="event.stopPropagation(); addToCompare({{.LapID}}, {{.TrackID}})">Compare</button>
                 </td>
             </tr>
             {{end}}

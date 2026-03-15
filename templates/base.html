@@ -78,24 +78,37 @@
 
     <script>
     // Global compare selection — persisted in sessionStorage
-    let compareSet = new Set(JSON.parse(sessionStorage.getItem('compareLaps') || '[]'));
+    // Stores {trackId, laps: [lapId, ...]} to enforce same-track comparison
+    let compareData = JSON.parse(sessionStorage.getItem('compareData') || '{"trackId":0,"laps":[]}');
+    let compareSet = new Set(compareData.laps);
 
-    function addToCompare(lapId) {
+    function addToCompare(lapId, trackId) {
+        trackId = trackId || 0;
+        // If adding from a different track, clear the old list
+        if (compareData.trackId && trackId && compareData.trackId !== trackId) {
+            compareSet.clear();
+            compareData.trackId = trackId;
+        }
+        if (!compareData.trackId && trackId) compareData.trackId = trackId;
+
         if (compareSet.has(lapId)) {
             compareSet.delete(lapId);
         } else {
             compareSet.add(lapId);
         }
+        if (compareSet.size === 0) compareData.trackId = 0;
         saveCompare();
         updateCompareBar();
     }
     function clearCompare() {
         compareSet.clear();
+        compareData = {trackId: 0, laps: []};
         saveCompare();
         updateCompareBar();
     }
     function saveCompare() {
-        sessionStorage.setItem('compareLaps', JSON.stringify([...compareSet]));
+        compareData.laps = [...compareSet];
+        sessionStorage.setItem('compareData', JSON.stringify(compareData));
     }
     function updateCompareBar() {
         const bar = document.getElementById('compare-bar');

@@ -50,13 +50,14 @@
                 <th class="px-4 py-3">Mod Pts</th>
                 <th class="px-4 py-3">Best Lap</th>
                 <th class="px-4 py-3">Tires</th>
+                <th class="px-4 py-3"></th>
             </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
             {{range .Entries}}
-            <tr class="hover:bg-gray-50 cursor-pointer" onclick="window.location='/session/{{.SessionID}}'">
+            <tr class="hover:bg-gray-50">
                 <td class="px-4 py-2 text-gray-500 font-medium">{{.Rank}}</td>
-                <td class="px-4 py-2 font-medium">{{.DriverName}}</td>
+                <td class="px-4 py-2 font-medium cursor-pointer" onclick="window.location='/session/{{.SessionID}}'">{{.DriverName}}</td>
                 <td class="px-4 py-2">
                     <span class="text-xs bg-gray-100 px-2 py-0.5 rounded">{{.CarClass}}</span>
                 </td>
@@ -64,6 +65,9 @@
                 <td class="px-4 py-2 text-gray-500">{{.ModPoints}}</td>
                 <td class="px-4 py-2 font-mono font-semibold text-green-700">{{.BestLapTime}}</td>
                 <td class="px-4 py-2 text-gray-500">{{.TireBrand}} {{.TireModel}}</td>
+                <td class="px-4 py-2">
+                    <button class="text-xs text-blue-600 hover:underline" data-compare-lap="{{.LapID}}" onclick="addToCompare({{.LapID}}, {{.TrackID}})">Compare</button>
+                </td>
             </tr>
             {{end}}
         </tbody>

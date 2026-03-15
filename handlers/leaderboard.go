@@ -21,6 +21,7 @@ type LeaderboardEntry struct {
 	TireModel   string
 	TrackName   string
 	TrackConfig string
+	TrackID     int
 	SessionID   string
 	LapID       int
 }
@@ -96,7 +97,7 @@ func queryLeaderboard(trackName, trackConfig, carClass, tireBrand, tireModel str
 			d.name, COALESCE(s.car_class,''), COALESCE(s.car_generation,''),
 			COALESCE(s.car_model,''), s.mod_points,
 			l.lap_time_ms, COALESCE(s.tire_brand,''), COALESCE(s.tire_model,''),
-			t.name, t.config, s.id, l.id
+			t.name, t.config, t.id, s.id, l.id
 		FROM laps l
 		JOIN sessions s ON s.id = l.session_id
 		JOIN drivers d ON d.id = s.driver_id
@@ -143,7 +144,7 @@ func queryLeaderboard(trackName, trackConfig, carClass, tireBrand, tireModel str
 		var e LeaderboardEntry
 		rows.Scan(&e.DriverName, &e.CarClass, &e.CarGen, &e.CarModel,
 			&e.ModPoints, &e.BestLapMs, &e.TireBrand, &e.TireModel,
-			&e.TrackName, &e.TrackConfig, &e.SessionID, &e.LapID)
+			&e.TrackName, &e.TrackConfig, &e.TrackID, &e.SessionID, &e.LapID)
 		e.Rank = rank
 		e.BestLapTime = FormatLapTime(e.BestLapMs)
 		entries = append(entries, e)

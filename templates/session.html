@@ -9,6 +9,7 @@
         {{if .TireBrand}}<span>{{.TireBrand}} {{.TireModel}}</span>{{end}}
         <span>Uploaded {{.UploadedAt.Format "Jan 2, 2006 3:04 PM"}}</span>
         <a href="/session/download/{{.ID}}" class="text-blue-600 hover:underline text-sm">Download VBO</a>
+        <a href="/leaderboard?track={{.TrackName}}{{if .CarClass}}&class={{.CarClass}}{{end}}{{if .TireBrand}}&tire_brand={{.TireBrand}}&tire_model={{.TireModel}}{{end}}" class="text-blue-600 hover:underline text-sm">Leaderboard</a>
     </div>
 </div>
 {{end}}
@@ -67,7 +68,7 @@
                         {{end}}
                     </td>
                     <td class="px-4 py-2">
-                        <button class="text-xs text-blue-600 hover:underline" data-compare-lap="{{.ID}}" onclick="event.stopPropagation(); addToCompare({{.ID}})">Compare</button>
+                        <button class="text-xs text-blue-600 hover:underline" data-compare-lap="{{.ID}}" onclick="event.stopPropagation(); addToCompare({{.ID}}, {{$.Session.TrackID}})">Compare</button>
                     </td>
                 </tr>
                 {{end}}
