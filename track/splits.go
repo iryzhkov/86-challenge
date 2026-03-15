@@ -104,13 +104,7 @@ func SplitLaps(points []vbo.DataPoint, gates []vbo.SplitGate) []LapResult {
 		laps = append(laps, lap)
 	}
 
-	// Mark outlaps/inlaps
-	if len(laps) > 0 {
-		laps[0].IsOutlap = true
-		laps[0].IsValid = false
-	}
-
-	// Detect invalid laps by comparing to median
+	// Detect invalid laps by comparing to median (including first/last lap check)
 	detectInvalidLaps(laps)
 
 	return laps
@@ -132,28 +126,25 @@ func detectInvalidLaps(laps []LapResult) {
 		return
 	}
 
-	// Compute median lap time (excluding already-invalid laps)
-	var validTimes []int
+	// Compute median lap time from all laps
+	var allTimes []int
 	for _, l := range laps {
-		if l.IsValid {
-			validTimes = append(validTimes, l.LapTimeMs)
-		}
+		allTimes = append(allTimes, l.LapTimeMs)
 	}
-	if len(validTimes) == 0 {
+	if len(allTimes) < 2 {
 		return
 	}
 
-	sort.Ints(validTimes)
-	median := validTimes[len(validTimes)/2]
+	sort.Ints(allTimes)
+	median := allTimes[len(allTimes)/2]
 
 	for i := range laps {
-		if !laps[i].IsValid {
-			continue
-		}
-		// Too slow = likely incident or inlap
+		// Too slow = likely outlap, inlap, or incident
 		if laps[i].LapTimeMs > median*3/2 {
 			laps[i].IsValid = false
-			if i == len(laps)-1 {
+			if i == 0 {
+				laps[i].IsOutlap = true
+			} else if i == len(laps)-1 {
 				laps[i].IsInlap = true
 			}
 		}
