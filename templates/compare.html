@@ -15,6 +15,18 @@
     {{end}}
 </div>
 
+<!-- Turn Analysis Summary -->
+<div id="turn-summary" class="hidden bg-white rounded-lg shadow p-4 mb-8">
+    <h2 class="text-lg font-semibold mb-3">Turn-by-Turn Analysis</h2>
+    <div id="turn-summary-content" class="space-y-2 text-sm"></div>
+</div>
+
+<!-- Turn Details Table -->
+<div id="turn-table" class="hidden bg-white rounded-lg shadow table-wrap mb-8">
+    <table class="w-full text-sm" id="turn-detail-table">
+    </table>
+</div>
+
 <!-- Track Map + Time Delta (side by side) -->
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8" style="min-height: 350px;">
     <div class="bg-white rounded-lg shadow p-4 flex flex-col">
@@ -372,7 +384,195 @@ Promise.all(lapMeta.map(m => fetch('/api/telemetry/' + m.id).then(r => r.json())
 
         // Invalidate map size after layout settles
         setTimeout(() => map.invalidateSize(), 200);
+
+        // === Turn Detection & Comparison ===
+        analyzeTurns(allData, lapMeta, step);
     });
+
+function analyzeTurns(allData, lapMeta, step) {
+    if (allData.length < 2) return;
+
+    const ref = allData[0];
+    // Smooth speed for turn detection
+    function smooth(arr, w) {
+        return arr.map((_, i) => {
+            const lo = Math.max(0, i - w), hi = Math.min(arr.length, i + w + 1);
+            let sum = 0;
+            for (let k = lo; k < hi; k++) sum += arr[k];
+            return sum / (hi - lo);
+        });
+    }
+
+    const smoothSpeed = smooth(ref.speeds, 5);
+
+    // Find turns: local min in speed where drop from preceding max > 15 km/h
+    const turns = [];
+    let lastMax = 0, lastMaxDist = 0;
+    let inDrop = false, minSpeed = Infinity, minDist = 0, entryDist = 0, entrySpeed = 0;
+
+    for (let i = 1; i < smoothSpeed.length - 1; i++) {
+        const spd = smoothSpeed[i];
+        const dist = ref.distances[i];
+
+        // Track local maxima
+        if (spd > smoothSpeed[i-1] && spd > smoothSpeed[i+1] && spd > lastMax * 0.9) {
+            if (inDrop && lastMax - minSpeed > 15) {
+                // Found a turn: entry at lastMax, apex at minSpeed
+                // Find exit: next local max after the min
+                let exitSpeed = minSpeed, exitDist = minDist;
+                for (let j = i; j < Math.min(smoothSpeed.length - 1, i + 100); j++) {
+                    if (smoothSpeed[j] > smoothSpeed[j-1] && smoothSpeed[j] > smoothSpeed[j+1] && smoothSpeed[j] > minSpeed + 10) {
+                        exitSpeed = smoothSpeed[j];
+                        exitDist = ref.distances[j];
+                        break;
+                    }
+                }
+                turns.push({
+                    entryDist, entrySpeed: Math.round(entrySpeed),
+                    apexDist: minDist, apexSpeed: Math.round(minSpeed),
+                    exitDist, exitSpeed: Math.round(exitSpeed),
+                });
+            }
+            lastMax = spd;
+            lastMaxDist = dist;
+            entryDist = dist;
+            entrySpeed = spd;
+            inDrop = false;
+            minSpeed = Infinity;
+        }
+
+        // Track drops
+        if (spd < lastMax - 10) inDrop = true;
+        if (inDrop && spd < minSpeed) {
+            minSpeed = spd;
+            minDist = dist;
+        }
+    }
+
+    if (turns.length === 0) return;
+
+    // For each turn, extract metrics from all laps
+    function getSpeedAtDist(data, targetDist) {
+        let best = 0, bestDiff = Infinity;
+        for (let i = 0; i < data.distances.length; i++) {
+            const diff = Math.abs(data.distances[i] - targetDist);
+            if (diff < bestDiff) { bestDiff = diff; best = data.speeds[i]; }
+        }
+        return Math.round(best);
+    }
+
+    function getBrakePointDist(data, entryDist, apexDist) {
+        // Find where brake > 5% first occurs between entry and apex
+        for (let i = 0; i < data.distances.length; i++) {
+            if (data.distances[i] >= entryDist && data.distances[i] <= apexDist) {
+                if (data.brake[i] > 5) return Math.round(data.distances[i]);
+            }
+        }
+        return Math.round(entryDist);
+    }
+
+    const turnData = turns.map((turn, ti) => {
+        const perLap = allData.map((data, li) => ({
+            driver: lapMeta[li].driver,
+            color: lapMeta[li].color,
+            entry: getSpeedAtDist(data, turn.entryDist),
+            apex: getSpeedAtDist(data, turn.apexDist),
+            exit: getSpeedAtDist(data, turn.exitDist),
+            brakePoint: getBrakePointDist(data, turn.entryDist, turn.apexDist),
+        }));
+        return { num: ti + 1, turn, perLap };
+    });
+
+    // Find biggest differences for summary
+    const insights = [];
+    const refDriver = lapMeta[0].driver;
+
+    for (const td of turnData) {
+        for (let li = 1; li < td.perLap.length; li++) {
+            const r = td.perLap[0], c = td.perLap[li];
+            const entryDiff = r.entry - c.entry;
+            const apexDiff = r.apex - c.apex;
+            const brakeDiff = r.brakePoint - c.brakePoint; // negative = ref brakes later
+
+            if (Math.abs(entryDiff) > 5) {
+                const faster = entryDiff > 0 ? refDriver : c.driver;
+                const slower = entryDiff > 0 ? c.driver : refDriver;
+                insights.push({
+                    magnitude: Math.abs(entryDiff),
+                    text: `<strong>Turn ${td.num}</strong>: ${faster} enters ${Math.abs(entryDiff)} km/h faster than ${slower}`,
+                    color: entryDiff > 0 ? lapMeta[0].color : lapMeta[li].color,
+                });
+            }
+            if (Math.abs(apexDiff) > 5) {
+                const faster = apexDiff > 0 ? refDriver : c.driver;
+                const slower = apexDiff > 0 ? c.driver : refDriver;
+                insights.push({
+                    magnitude: Math.abs(apexDiff),
+                    text: `<strong>Turn ${td.num}</strong>: ${faster} carries ${Math.abs(apexDiff)} km/h more through the apex than ${slower}`,
+                    color: apexDiff > 0 ? lapMeta[0].color : lapMeta[li].color,
+                });
+            }
+            if (Math.abs(brakeDiff) > 10) {
+                const later = brakeDiff < 0 ? refDriver : c.driver;
+                const earlier = brakeDiff < 0 ? c.driver : refDriver;
+                insights.push({
+                    magnitude: Math.abs(brakeDiff) / 5,
+                    text: `<strong>Turn ${td.num}</strong>: ${later} brakes ${Math.abs(brakeDiff)}m later than ${earlier}`,
+                    color: brakeDiff < 0 ? lapMeta[0].color : lapMeta[li].color,
+                });
+            }
+        }
+    }
+
+    // Sort by magnitude, show top insights
+    insights.sort((a, b) => b.magnitude - a.magnitude);
+    const topInsights = insights.slice(0, 6);
+
+    if (topInsights.length > 0) {
+        const summaryDiv = document.getElementById('turn-summary');
+        const contentDiv = document.getElementById('turn-summary-content');
+        summaryDiv.classList.remove('hidden');
+        contentDiv.innerHTML = topInsights.map(ins =>
+            `<div class="flex items-start gap-2">
+                <div class="w-3 h-3 rounded-full mt-1 flex-shrink-0" style="background:${ins.color}"></div>
+                <p>${ins.text}</p>
+            </div>`
+        ).join('');
+    }
+
+    // Build turn detail table
+    if (turnData.length > 0) {
+        const tableDiv = document.getElementById('turn-table');
+        const table = document.getElementById('turn-detail-table');
+        tableDiv.classList.remove('hidden');
+
+        let html = `<thead class="bg-gray-50 text-gray-600 text-left"><tr>
+            <th class="px-3 py-2">Turn</th>`;
+        for (const m of lapMeta) {
+            html += `<th class="px-3 py-2" colspan="3"><span style="color:${m.color}">${m.driver}</span></th>`;
+        }
+        html += `</tr><tr><th class="px-3 py-2"></th>`;
+        for (let i = 0; i < lapMeta.length; i++) {
+            html += `<th class="px-3 py-2 text-xs font-normal">Entry</th>
+                     <th class="px-3 py-2 text-xs font-normal">Apex</th>
+                     <th class="px-3 py-2 text-xs font-normal">Exit</th>`;
+        }
+        html += `</tr></thead><tbody class="divide-y divide-gray-100">`;
+
+        for (const td of turnData) {
+            html += `<tr>`;
+            html += `<td class="px-3 py-1.5 font-medium text-gray-600">T${td.num}</td>`;
+            for (const lp of td.perLap) {
+                html += `<td class="px-3 py-1.5 font-mono text-xs">${lp.entry}</td>`;
+                html += `<td class="px-3 py-1.5 font-mono text-xs">${lp.apex}</td>`;
+                html += `<td class="px-3 py-1.5 font-mono text-xs">${lp.exit}</td>`;
+            }
+            html += `</tr>`;
+        }
+        html += `</tbody>`;
+        table.innerHTML = html;
+    }
+}
 </script>
 
 {{else}}
