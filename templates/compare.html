@@ -174,7 +174,7 @@ Chart.register(crosshairPlugin, sectorPlugin);
 
 const lapMeta = [
     {{range .Laps}}
-    {id: {{.LapID}}, sessionId: "{{.SessionID}}", driver: "{{.DriverName}}", color: "{{.Color}}", timeMs: {{.LapTimeMs}}, splits: [{{range .SplitTimes}}{{.}},{{end}}]},
+    {id: {{.LapID}}, sessionId: "{{.SessionID}}", driver: "{{.DriverName}}", color: "{{.Color}}", timeMs: {{.LapTimeMs}}, track: "{{.TrackName}}", config: "{{.TrackConfig}}", splits: [{{range .SplitTimes}}{{.}},{{end}}]},
     {{end}}
 ];
 
@@ -387,17 +387,70 @@ Promise.all(lapMeta.map(m => fetch('/api/telemetry/' + m.id).then(r => r.json())
 
         // === Turn Detection & Comparison (only for 2-lap comparison) ===
         if (allData.length === 2) {
-            analyzeTurns(allData, lapMeta, map);
+            const trackKey = lapMeta[0].track + '|' + lapMeta[0].config;
+            analyzeTurns(allData, lapMeta, map, trackKey);
         }
     });
 
-function analyzeTurns(allData, lapMeta, leafletMap) {
+// Official turn definitions per track (lat/lon of apex)
+const KNOWN_TURNS = {
+    'Laguna Seca|Full': [
+        {num: 1,  name: 'T1',         lat: 36.5862, lon: -121.7556},
+        {num: 2,  name: 'T2 Andretti', lat: 36.5843, lon: -121.7540},
+        {num: 3,  name: 'T3',         lat: 36.5838, lon: -121.7531},
+        {num: 4,  name: 'T4',         lat: 36.5848, lon: -121.7507},
+        {num: 5,  name: 'T5',         lat: 36.5863, lon: -121.7488},
+        {num: 6,  name: 'T6',         lat: 36.5878, lon: -121.7450},
+        {num: 7,  name: 'T7',         lat: 36.5870, lon: -121.7413},
+        {num: 8,  name: 'T8 Corkscrew', lat: 36.5849, lon: -121.7396},
+        {num: 9,  name: 'T9 Rainey',  lat: 36.5835, lon: -121.7415},
+        {num: 10, name: 'T10',        lat: 36.5831, lon: -121.7453},
+        {num: 11, name: 'T11',        lat: 36.5845, lon: -121.7504},
+    ],
+    'Sonoma Raceway|Long': [
+        {num: 1,  name: 'T1',  lat: 38.1621, lon: -122.4558},
+        {num: 2,  name: 'T2',  lat: 38.1617, lon: -122.4572},
+        {num: 3,  name: 'T3',  lat: 38.1632, lon: -122.4589},
+        {num: 3.5,name: 'T3a', lat: 38.1646, lon: -122.4598},
+        {num: 4,  name: 'T4',  lat: 38.1660, lon: -122.4614},
+        {num: 5,  name: 'T5',  lat: 38.1672, lon: -122.4624},
+        {num: 6,  name: 'T6',  lat: 38.1670, lon: -122.4637},
+        {num: 7,  name: 'T7',  lat: 38.1657, lon: -122.4637},
+        {num: 8,  name: 'T8',  lat: 38.1646, lon: -122.4614},
+        {num: 9,  name: 'T9',  lat: 38.1638, lon: -122.4588},
+        {num: 10, name: 'T10', lat: 38.1633, lon: -122.4568},
+        {num: 11, name: 'T11', lat: 38.1623, lon: -122.4545},
+    ],
+    'Thunderhill|East Cyclone': [
+        {num: 1,  name: 'T1',  lat: 39.5393, lon: -122.3295},
+        {num: 2,  name: 'T2',  lat: 39.5416, lon: -122.3268},
+        {num: 3,  name: 'T3',  lat: 39.5443, lon: -122.3271},
+        {num: 4,  name: 'T4',  lat: 39.5449, lon: -122.3289},
+        {num: 5,  name: 'T5 Cyclone', lat: 39.5437, lon: -122.3316},
+        {num: 6,  name: 'T6',  lat: 39.5418, lon: -122.3338},
+        {num: 7,  name: 'T7',  lat: 39.5405, lon: -122.3358},
+        {num: 8,  name: 'T8',  lat: 39.5388, lon: -122.3355},
+        {num: 9,  name: 'T9',  lat: 39.5378, lon: -122.3330},
+    ],
+    'Thunderhill|East Bypass': [
+        {num: 1,  name: 'T1',  lat: 39.5393, lon: -122.3295},
+        {num: 2,  name: 'T2',  lat: 39.5416, lon: -122.3268},
+        {num: 3,  name: 'T3',  lat: 39.5443, lon: -122.3271},
+        {num: 4,  name: 'T4',  lat: 39.5449, lon: -122.3289},
+        {num: 5,  name: 'T5',  lat: 39.5430, lon: -122.3300},
+        {num: 6,  name: 'T6',  lat: 39.5418, lon: -122.3338},
+        {num: 7,  name: 'T7',  lat: 39.5405, lon: -122.3358},
+        {num: 8,  name: 'T8',  lat: 39.5388, lon: -122.3355},
+        {num: 9,  name: 'T9',  lat: 39.5378, lon: -122.3330},
+    ],
+};
+
+function analyzeTurns(allData, lapMeta, leafletMap, trackKey) {
     const KMH_TO_MPH = 0.621371;
     const M_TO_FT = 3.28084;
     const ref = allData[0], comp = allData[1];
     const samePerson = lapMeta[0].driver === lapMeta[1].driver;
 
-    // Labels for the two laps
     const fasterLabel = samePerson ? 'your faster lap' : lapMeta[0].driver;
     const slowerLabel = samePerson ? 'your slower lap' : lapMeta[1].driver;
 
@@ -515,16 +568,65 @@ function analyzeTurns(allData, lapMeta, leafletMap) {
         }
     }
 
-    // Sort turns by distance
+    // Sort auto-detected turns by distance
     turns.sort((a, b) => a.apexDist - b.apexDist);
 
-    if (turns.length === 0) return;
+    // Match to known turns if available
+    const knownTurns = KNOWN_TURNS[trackKey];
+    let labeledTurns = [];
+
+    if (knownTurns) {
+        // For each known turn, find the closest auto-detected turn (by lat/lon)
+        function haversineDist(lat1, lon1, lat2, lon2) {
+            const R = 6371000;
+            const dLat = (lat2-lat1)*Math.PI/180, dLon = (lon2-lon1)*Math.PI/180;
+            const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        }
+
+        const used = new Set();
+        for (const kt of knownTurns) {
+            let bestIdx = -1, bestDist = Infinity;
+            for (let i = 0; i < turns.length; i++) {
+                if (used.has(i)) continue;
+                const d = haversineDist(kt.lat, kt.lon, turns[i].apexLat, turns[i].apexLon);
+                if (d < bestDist) { bestDist = d; bestIdx = i; }
+            }
+            if (bestIdx >= 0 && bestDist < 150) { // within 150m
+                used.add(bestIdx);
+                labeledTurns.push({
+                    ...turns[bestIdx],
+                    label: kt.name,
+                    num: kt.num,
+                    knownLat: kt.lat,
+                    knownLon: kt.lon,
+                });
+            } else {
+                // Known turn not detected — add placeholder
+                labeledTurns.push({
+                    label: kt.name,
+                    num: kt.num,
+                    knownLat: kt.lat,
+                    knownLon: kt.lon,
+                    notDetected: true,
+                });
+            }
+        }
+    } else {
+        // No known turns — just number them
+        labeledTurns = turns.map((t, i) => ({...t, label: 'T' + (i+1), num: i+1}));
+    }
+
+    if (labeledTurns.length === 0) return;
 
     // Mark turns on the map
-    turns.forEach((t, i) => {
-        L.circleMarker([t.apexLat, t.apexLon], {
-            radius: 10, color: '#1f2937', fillColor: '#fff', fillOpacity: 0.9, weight: 2
-        }).bindTooltip('T' + (i+1), {permanent: true, direction: 'center', className: 'turn-label'})
+    labeledTurns.forEach(t => {
+        const lat = t.knownLat || t.apexLat;
+        const lon = t.knownLon || t.apexLon;
+        const color = t.notDetected ? '#9ca3af' : '#1f2937';
+        L.circleMarker([lat, lon], {
+            radius: 10, color, fillColor: '#fff', fillOpacity: 0.9, weight: 2
+        }).bindTooltip(t.label, {permanent: true, direction: 'center', className: 'turn-label'})
           .addTo(leafletMap);
     });
 
@@ -560,7 +662,7 @@ function analyzeTurns(allData, lapMeta, leafletMap) {
         return t;
     }
 
-    const turnData = turns.map((turn, ti) => {
+    const turnData = labeledTurns.filter(t => !t.notDetected).map(turn => {
         const laps = [ref, comp].map((data, li) => {
             const bp = getBrakePointDist(data, turn.entryDist, turn.apexDist);
             return {
@@ -571,11 +673,11 @@ function analyzeTurns(allData, lapMeta, leafletMap) {
                 turnTime: timeInRange(data, turn.entryDist, turn.exitDist),
             };
         });
-        return { num: ti + 1, turn, laps };
+        return { num: turn.num, label: turn.label, turn, laps };
     });
 
     // Build insights grouped by turn
-    const turnInsights = []; // array of { num, timeDiff, lines[] }
+    const turnInsights = []; // array of { label, timeDiff, lines[] }
     for (const td of turnData) {
         const r = td.laps[0], c = td.laps[1];
         const timeDiff = c.turnTime - r.turnTime;
@@ -606,7 +708,7 @@ function analyzeTurns(allData, lapMeta, leafletMap) {
         }
 
         if (lines.length > 0 || Math.abs(timeDiff) > 0.05) {
-            turnInsights.push({ num: td.num, timeDiff, lines });
+            turnInsights.push({ label: td.label, timeDiff, lines });
         }
     }
 
@@ -621,7 +723,7 @@ function analyzeTurns(allData, lapMeta, leafletMap) {
                 ? `<span class="ml-2 font-mono text-xs ${timeColor}">${timeSign}${ti.timeDiff.toFixed(2)}s</span>` : '';
             const bullets = ti.lines.map(l => `<li class="text-gray-600">${l}</li>`).join('');
             return `<div class="mb-2">
-                <p class="font-medium">Turn ${ti.num}${timeTag}</p>
+                <p class="font-medium">${ti.label}${timeTag}</p>
                 ${bullets ? `<ul class="ml-4 text-sm list-disc">${bullets}</ul>` : ''}
             </div>`;
         }).join('');
@@ -660,7 +762,7 @@ function analyzeTurns(allData, lapMeta, leafletMap) {
             const timeSign = timeDiff > 0 ? '+' : '';
 
             html += `<tr>
-                <td class="px-3 py-1.5 font-medium text-gray-600">T${td.num}</td>`;
+                <td class="px-3 py-1.5 font-medium text-gray-600 whitespace-nowrap">${td.label}</td>`;
             for (const lp of td.laps) {
                 const bpFt = Math.round((lp.brakeDist - td.turn.entryDist) * M_TO_FT);
                 html += `<td class="px-3 py-1.5 font-mono text-xs">${lp.entry}</td>

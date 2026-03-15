@@ -14,10 +14,11 @@ type CompareLap struct {
 	LapID      int
 	SessionID  string
 	DriverName string
-	LapTimeMs  int
-	LapTime    string
-	TrackName  string
-	CarModel   string
+	LapTimeMs   int
+	LapTime     string
+	TrackName   string
+	TrackConfig string
+	CarModel    string
 	Color      string
 	SplitTimes []int // sector times in ms
 }
@@ -47,8 +48,9 @@ func ComparePage(w http.ResponseWriter, r *http.Request) {
 			DriverName: session.DriverName,
 			LapTimeMs:  lap.LapTimeMs,
 			LapTime:    FormatLapTime(lap.LapTimeMs),
-			TrackName:  session.TrackName,
-			CarModel:   session.CarModel,
+			TrackName:   session.TrackName,
+			TrackConfig: session.TrackConfig,
+			CarModel:    session.CarModel,
 			SplitTimes: lap.SplitTimesMs,
 		})
 	}
