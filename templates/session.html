@@ -2,7 +2,7 @@
 {{define "content"}}
 {{with .Session}}
 <div class="mb-6">
-    <h1 class="text-2xl font-bold text-gray-900">{{.DriverName}} — {{.TrackName}} {{.TrackConfig}}</h1>
+    <h1 class="text-2xl font-bold text-gray-900"><a href="/driver/{{.DriverID}}" class="text-blue-600 hover:underline">{{.DriverName}}</a> — {{.TrackName}} {{.TrackConfig}}</h1>
     <div class="text-gray-500 text-sm mt-1 flex flex-wrap gap-4">
         <span>{{.CarModel}} ({{.CarGeneration}})</span>
         {{if .CarClass}}<span class="bg-gray-100 px-2 py-0.5 rounded">{{.CarClass}}</span>{{end}}
@@ -25,14 +25,12 @@
 <!-- Lap Tables (grouped by session) -->
 {{range .SessionBlocks}}
 <div class="mb-6">
-    {{if $.HasMultiple}}
     <div class="flex items-center gap-3 mb-2">
-        <h3 class="text-sm font-semibold text-gray-600">{{.Label}}</h3>
-        {{if .IsCurrent}}<span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">viewing</span>{{end}}
+        {{if $.HasMultiple}}<h3 class="text-sm font-semibold text-gray-600">{{.Label}}</h3>
+        {{if .IsCurrent}}<span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">viewing</span>{{end}}{{end}}
         <a href="/session/download/{{.Session.ID}}" class="text-xs text-blue-600 hover:underline ml-auto">Download VBO</a>
         <button onclick="confirmDelete('{{.Session.ID}}')" class="text-xs text-red-400 hover:text-red-600">Delete</button>
     </div>
-    {{end}}
     <div class="bg-white rounded-lg shadow table-wrap">
         <table class="w-full text-sm">
             <thead class="bg-gray-50 text-gray-600 text-left">
@@ -87,7 +85,7 @@
 <!-- Telemetry Charts -->
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-20">
     <div class="bg-white rounded-lg shadow p-4">
-        <h3 class="text-sm font-semibold text-gray-600 mb-2">Speed (km/h)</h3>
+        <h3 class="text-sm font-semibold text-gray-600 mb-2">Speed (mph)</h3>
         <canvas id="chart-speed" height="200"></canvas>
     </div>
     <div class="bg-white rounded-lg shadow p-4">
@@ -189,7 +187,7 @@ function loadLapTelemetry(lapId, lapNum) {
             const dist = [], spd = [], rpm = [], brk = [], thr = [], latg = [], longg = [];
             for (let i = 0; i < data.distances.length; i += step) {
                 dist.push(Math.round(data.distances[i]));
-                spd.push(data.speeds[i]);
+                spd.push(data.speeds[i] * 0.621371);
                 rpm.push(data.rpms[i]);
                 brk.push(data.brake[i]);
                 thr.push(data.throttle[i]);

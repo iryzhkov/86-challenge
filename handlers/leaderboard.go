@@ -10,6 +10,7 @@ import (
 
 type LeaderboardEntry struct {
 	Rank        int
+	DriverID    int
 	DriverName  string
 	CarClass    string
 	CarGen      string
@@ -94,7 +95,7 @@ func mostPopularTrack() (string, error) {
 func queryLeaderboard(trackName, trackConfig, carClass, tireBrand, tireModel string) ([]LeaderboardEntry, error) {
 	query := `
 		SELECT DISTINCT ON (d.name)
-			d.name, COALESCE(s.car_class,''), COALESCE(s.car_generation,''),
+			d.id, d.name, COALESCE(s.car_class,''), COALESCE(s.car_generation,''),
 			COALESCE(s.car_model,''), s.mod_points,
 			l.lap_time_ms, COALESCE(s.tire_brand,''), COALESCE(s.tire_model,''),
 			t.name, t.config, t.id, s.id, l.id
@@ -142,7 +143,7 @@ func queryLeaderboard(trackName, trackConfig, carClass, tireBrand, tireModel str
 	for rows.Next() {
 		rank++
 		var e LeaderboardEntry
-		rows.Scan(&e.DriverName, &e.CarClass, &e.CarGen, &e.CarModel,
+		rows.Scan(&e.DriverID, &e.DriverName, &e.CarClass, &e.CarGen, &e.CarModel,
 			&e.ModPoints, &e.BestLapMs, &e.TireBrand, &e.TireModel,
 			&e.TrackName, &e.TrackConfig, &e.TrackID, &e.SessionID, &e.LapID)
 		e.Rank = rank

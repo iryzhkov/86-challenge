@@ -57,7 +57,7 @@
             {{range .Entries}}
             <tr class="hover:bg-gray-50">
                 <td class="px-4 py-2 text-gray-500 font-medium">{{.Rank}}</td>
-                <td class="px-4 py-2 font-medium cursor-pointer" onclick="window.location='/session/{{.SessionID}}'">{{.DriverName}}</td>
+                <td class="px-4 py-2 font-medium"><a href="/driver/{{.DriverID}}" class="text-blue-600 hover:underline">{{.DriverName}}</a></td>
                 <td class="px-4 py-2">
                     <span class="text-xs bg-gray-100 px-2 py-0.5 rounded">{{.CarClass}}</span>
                 </td>

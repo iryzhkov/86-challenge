@@ -67,6 +67,11 @@ func CreateEventAndRedirect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if parsedDate.After(time.Now()) {
+		http.Error(w, "Event date cannot be in the future", http.StatusBadRequest)
+		return
+	}
+
 	eventID, _, err := models.CreateEvent(name, trackID, parsedDate, organizer)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to create event: %v", err), http.StatusInternalServerError)
@@ -125,6 +130,12 @@ func UploadProcess(w http.ResponseWriter, r *http.Request) {
 	var errors []string
 
 	for _, fh := range files {
+		// Check for duplicate upload
+		if dup, _ := models.SessionExistsByFilename(driverID, eventID, fh.Filename); dup {
+			errors = append(errors, fmt.Sprintf("%s: already uploaded for this driver and event", fh.Filename))
+			continue
+		}
+
 		file, err := fh.Open()
 		if err != nil {
 			errors = append(errors, fmt.Sprintf("%s: failed to open", fh.Filename))

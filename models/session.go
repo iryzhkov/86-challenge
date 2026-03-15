@@ -204,6 +204,16 @@ func ListDriverNames() ([]string, error) {
 	return names, nil
 }
 
+// SessionExistsByFilename checks if a session with the same filename already exists
+// for the given driver and event.
+func SessionExistsByFilename(driverID, eventID int, filename string) (bool, error) {
+	var exists bool
+	err := DB.QueryRow(context.Background(),
+		`SELECT EXISTS(SELECT 1 FROM sessions WHERE driver_id = $1 AND event_id = $2 AND filename = $3)`,
+		driverID, eventID, filename).Scan(&exists)
+	return exists, err
+}
+
 func DeleteSession(id string) error {
 	ctx := context.Background()
 	// Delete in order: telemetry → laps → session

@@ -78,7 +78,7 @@
         <tbody class="divide-y divide-gray-100">
             {{range .RecentSessions}}
             <tr class="hover:bg-gray-50 cursor-pointer" onclick="window.location='/session/{{.ID}}'">
-                <td class="px-4 py-3 font-medium">{{.DriverName}}</td>
+                <td class="px-4 py-3 font-medium"><a href="/driver/{{.DriverID}}" class="text-blue-600 hover:underline" onclick="event.stopPropagation()">{{.DriverName}}</a></td>
                 <td class="px-4 py-3">{{.TrackName}} {{.TrackConfig}}</td>
                 <td class="px-4 py-3">
                     {{.CarModel}}
