@@ -419,10 +419,11 @@ function analyzeTurns(allData, lapMeta, leafletMap) {
     // 1. Brake zones (brake > 2%) - catches heavy braking turns
     // 2. Throttle lift + lateral G (throttle < 50% AND |latG| > 0.3) - catches fast kinks
     // A "decel zone" is where either signal is active.
+    // Detect decel zones more precisely:
+    // Only use BRAKE for zone detection (not throttle lift + latG, which bleeds into mid-corner)
+    // But with a very low threshold to catch light braking
     const isDeceling = smoothSpeed.map((_, i) => {
-        if (smoothBrake[i] > 2) return true;                          // any braking
-        if (smoothThrottle[i] < 50 && smoothLatG[i] > 0.25) return true; // lift + turning
-        if (smoothSpeed[i] < (smoothSpeed[Math.max(0,i-5)] || 0) - 2 && smoothLatG[i] > 0.2) return true; // speed dropping while turning
+        if (smoothBrake[i] > 1) return true;    // any braking at all
         return false;
     });
 
@@ -497,6 +498,43 @@ function analyzeTurns(allData, lapMeta, leafletMap) {
             });
         }
     }
+
+    // Second pass: find speed dips with high lateral G that aren't near existing turns
+    // This catches lift-off corners with no brake
+    for (let i = 5; i < smoothSpeed.length - 5; i++) {
+        const spd = smoothSpeed[i];
+        // Local min in speed?
+        if (spd < smoothSpeed[i-3] - 3 && spd < smoothSpeed[i+3] - 3 && smoothLatG[i] > 0.4) {
+            const dist = ref.distances[i];
+            // Check not already covered by an existing turn
+            const covered = turns.some(t => dist >= t.entryDist - 20 && dist <= t.exitDist + 20);
+            if (covered) continue;
+
+            // Find entry/exit
+            let entryIdx = i;
+            for (let j = i - 1; j >= Math.max(0, i - 30); j--) {
+                if (smoothSpeed[j] >= smoothSpeed[entryIdx]) entryIdx = j; else break;
+            }
+            let exitIdx = i;
+            for (let j = i + 1; j < Math.min(smoothSpeed.length, i + 80); j++) {
+                if (smoothSpeed[j] > smoothSpeed[exitIdx]) exitIdx = j;
+                if (j > i + 5 && smoothSpeed[j] < smoothSpeed[j-1] - 3) break;
+            }
+
+            if (smoothSpeed[entryIdx] - spd < 3) continue;
+
+            turns.push({
+                entryDist: ref.distances[entryIdx], entrySpeed: smoothSpeed[entryIdx], entryIdx,
+                brakeDist: ref.distances[i],
+                apexDist: ref.distances[i], apexSpeed: spd, apexIdx: i,
+                exitDist: ref.distances[exitIdx], exitSpeed: smoothSpeed[exitIdx], exitIdx,
+                apexLat: ref.lats[i], apexLon: ref.lons[i],
+            });
+        }
+    }
+
+    // Sort turns by distance
+    turns.sort((a, b) => a.apexDist - b.apexDist);
 
     if (turns.length === 0) return;
 
