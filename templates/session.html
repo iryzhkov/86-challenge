@@ -10,6 +10,7 @@
         <span>Uploaded {{.UploadedAt.Format "Jan 2, 2006 3:04 PM"}}</span>
         <a href="/session/download/{{.ID}}" class="text-blue-600 hover:underline text-sm">Download VBO</a>
         <a href="/leaderboard?track={{.TrackName}}{{if .CarClass}}&class={{.CarClass}}{{end}}{{if .TireBrand}}&tire_brand={{.TireBrand}}&tire_model={{.TireModel}}{{end}}" class="text-blue-600 hover:underline text-sm">Leaderboard</a>
+        {{if $.HasSimData}}<a href="/session/simulate/{{.ID}}" class="bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700 text-sm">Grip Simulation</a>{{end}}
     </div>
 </div>
 {{end}}

@@ -249,6 +249,7 @@ func SessionView(w http.ResponseWriter, r *http.Request) {
 		"TheoreticalLap":     theoreticalLap,
 		"TheoreticalSectors": theoreticalSectors,
 		"Consistency":        consistency,
+		"HasSimData":         CheckSimCapable(session.ID, session.Filename),
 	})
 }
 

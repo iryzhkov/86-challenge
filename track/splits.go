@@ -101,7 +101,24 @@ func SplitLaps(points []vbo.DataPoint, gates []vbo.SplitGate) []LapResult {
 			lap.SplitTimes = append(lap.SplitTimes, lapTimeMs-prev)
 		}
 
+		// Skip laps with no valid sector crossings (e.g. drive to track, not a real lap)
+		hasAnySector := false
+		for _, st := range lap.SplitTimes {
+			if st > 0 {
+				hasAnySector = true
+				break
+			}
+		}
+		if !hasAnySector {
+			continue
+		}
+
 		laps = append(laps, lap)
+	}
+
+	// Renumber laps after filtering
+	for i := range laps {
+		laps[i].LapNumber = i + 1
 	}
 
 	// Detect invalid laps by comparing to median (including first/last lap check)

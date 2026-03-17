@@ -56,8 +56,9 @@
                     {{range .Splits}}
                     <td class="px-4 py-2 font-mono text-gray-600">{{.}}</td>
                     {{end}}
-                    <td class="px-4 py-2">
+                    <td class="px-4 py-2 flex gap-2">
                         <button class="text-xs text-blue-600 hover:underline" data-compare-lap="{{.LapID}}" onclick="event.stopPropagation(); addToCompare({{.LapID}}, {{$.Event.TrackID}})">Compare</button>
+                        {{if .HasVBO}}<a href="/session/simulate/{{.SessionID}}" class="text-xs text-purple-600 hover:underline" onclick="event.stopPropagation()">Simulate</a>{{end}}
                     </td>
                 </tr>
                 {{end}}

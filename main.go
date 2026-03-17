@@ -49,6 +49,7 @@ func main() {
 	pages := []string{
 		"home.html", "upload.html", "session.html", "leaderboard.html",
 		"compare.html", "driver.html", "drivers.html", "event.html", "events.html", "sessions.html",
+		"simulate.html",
 	}
 	handlers.Templates = make(map[string]*template.Template)
 	for _, page := range pages {
@@ -74,6 +75,7 @@ func main() {
 	mux.HandleFunc("/upload/create-event", handlers.CreateEventAndRedirect)
 	mux.HandleFunc("/session/delete", handlers.DeleteSession)
 	mux.HandleFunc("/session/download/", handlers.DownloadVBO)
+	mux.HandleFunc("/session/simulate/", handlers.SimulatePage)
 	mux.HandleFunc("/session/", handlers.SessionView)
 	mux.HandleFunc("/leaderboard", handlers.LeaderboardPage)
 	mux.HandleFunc("/compare", handlers.ComparePage)
@@ -87,6 +89,7 @@ func main() {
 	mux.HandleFunc("/api/drivers", handlers.DriverSearch)
 	mux.HandleFunc("/api/driver/", handlers.DriverSetupAPI)
 	mux.HandleFunc("/api/telemetry/", handlers.TelemetryAPI)
+	mux.HandleFunc("/api/simulate/", handlers.SimulateAPI)
 	mux.HandleFunc("/api/events", handlers.EventSearchAPI)
 
 	// Static files

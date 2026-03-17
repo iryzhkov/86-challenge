@@ -39,6 +39,7 @@ func EventPage(w http.ResponseWriter, r *http.Request) {
 		TempF      float32
 		SessionID  string
 		LapID      int
+		HasVBO     bool
 	}
 
 	classOrder := []string{"stock", "street", "touring", "unlimited"}
@@ -76,6 +77,7 @@ func EventPage(w http.ResponseWriter, r *http.Request) {
 				TempF:      best.AmbientTempF,
 				SessionID:  s.ID,
 				LapID:      best.ID,
+				HasVBO:     CheckSimCapable(s.ID, s.Filename),
 			}
 		}
 	}

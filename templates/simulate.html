@@ -1,0 +1,388 @@
+{{template "base" .}}
+{{define "content"}}
+<div class="mb-4">
+    <a href="/session/{{.Session.ID}}" class="text-blue-600 hover:underline text-sm">← Back to Session</a>
+</div>
+<div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-900">Grip Simulation</h1>
+    <div class="text-gray-500 text-sm mt-1 flex flex-wrap gap-4">
+        <span>{{.Session.DriverName}}</span>
+        <span>{{.Session.TrackName}} — {{.Session.TrackConfig}}</span>
+        <span>{{.Session.CarModel}} ({{.Session.CarClass}})</span>
+        <span>{{.Session.TireBrand}} {{.Session.TireModel}}</span>
+    </div>
+</div>
+
+<!-- Loading state -->
+<div id="loading" class="flex flex-col items-center justify-center" style="min-height: 70vh;">
+    <div class="relative mb-6 w-full mx-auto" style="max-width: 560px;">
+        <svg id="trackSvg" viewBox="0 0 320 180" class="w-full" preserveAspectRatio="xMidYMid meet">
+            <polyline id="trackOutline" fill="none" stroke="#e5e7eb" stroke-width="10" stroke-linejoin="round" stroke-linecap="round"/>
+            <polyline id="trackSurface" fill="none" stroke="#d1d5db" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+            <circle id="carActual" r="5" fill="#dc2626"/>
+            <circle id="carSim" r="4" fill="#7c3aed" opacity="0.7"/>
+        </svg>
+    </div>
+    <p class="text-gray-600 text-lg font-medium">Analyzing telemetry...</p>
+    <p class="text-gray-400 text-sm mt-1">Building grip model and simulating optimal lap</p>
+</div>
+<script>
+(function() {
+    const trackData = JSON.parse({{$.TrackJSON}});
+    if (!trackData || trackData.length < 10) return;
+
+    const pts = trackData.map(p => p.x.toFixed(1) + ',' + p.y.toFixed(1)).join(' ');
+    document.getElementById('trackOutline').setAttribute('points', pts);
+    document.getElementById('trackSurface').setAttribute('points', pts);
+
+    const carActual = document.getElementById('carActual');
+    const carSim = document.getElementById('carSim');
+    const n = trackData.length;
+
+    const timeWeights = [];
+    let totalWeight = 0;
+    for (let i = 0; i < n; i++) {
+        const w = 1.0 / (0.3 + 0.7 * trackData[i].speed);
+        timeWeights.push(w);
+        totalWeight += w;
+    }
+    const cumTime = [0];
+    let cum = 0;
+    for (let i = 0; i < n; i++) {
+        cum += timeWeights[i] / totalWeight;
+        cumTime.push(cum);
+    }
+
+    const lapDuration = 2000;
+    const simSpeedFactor = 0.9;
+
+    function getPos(t) {
+        t = t % 1;
+        for (let i = 0; i < n; i++) {
+            if (t >= cumTime[i] && t < cumTime[i + 1]) {
+                const frac = (t - cumTime[i]) / (cumTime[i + 1] - cumTime[i]);
+                const j = (i + 1) % n;
+                return {
+                    x: trackData[i].x + (trackData[j].x - trackData[i].x) * frac,
+                    y: trackData[i].y + (trackData[j].y - trackData[i].y) * frac,
+                };
+            }
+        }
+        return {x: trackData[0].x, y: trackData[0].y};
+    }
+
+    let startTime = null;
+    window._animRunning = true;
+    function animate(ts) {
+        if (!startTime) startTime = ts;
+        const elapsed = ts - startTime;
+        const tActual = (elapsed % lapDuration) / lapDuration;
+        const posA = getPos(tActual);
+        carActual.setAttribute('cx', posA.x);
+        carActual.setAttribute('cy', posA.y);
+        const simLapDuration = lapDuration * simSpeedFactor;
+        const tSim = (elapsed % simLapDuration) / simLapDuration;
+        const posS = getPos(tSim);
+        carSim.setAttribute('cx', posS.x);
+        carSim.setAttribute('cy', posS.y);
+        if (window._animRunning) requestAnimationFrame(animate);
+    }
+    requestAnimationFrame(animate);
+})();
+</script>
+
+<!-- Error state -->
+<div id="error" class="hidden bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+    <p class="text-red-700 font-medium" id="errorMsg"></p>
+    <a href="/session/{{.Session.ID}}" class="text-blue-600 hover:underline text-sm mt-2 inline-block">Back to session</a>
+</div>
+
+<!-- Results -->
+<div id="results" class="hidden">
+    <!-- Estimated grip usage -->
+    <div class="bg-gradient-to-r from-purple-50 to-white rounded-lg shadow p-4 mb-6">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            <div>
+                <div class="text-sm font-medium text-gray-700">Estimated Grip Usage</div>
+                <p class="text-xs text-gray-400">The grip utilization level where the theoretical time matches your actual time</p>
+            </div>
+            <div class="text-3xl font-mono font-bold text-purple-700" id="estUtil"></div>
+        </div>
+    </div>
+
+    <!-- Utilization slider -->
+    <div class="bg-white rounded-lg shadow p-4 mb-6">
+        <div class="flex items-center gap-4">
+            <label class="text-sm font-medium text-gray-700 whitespace-nowrap">Grip Utilization:</label>
+            <input type="range" id="utilSlider" min="0" max="20" step="1" value="15" class="flex-1 accent-purple-600">
+            <span class="font-mono font-bold text-purple-700 w-12 text-right" id="utilLabel">95%</span>
+        </div>
+        <p class="text-xs text-gray-400 mt-1">Adjust to see how lap time changes with different grip levels. Your estimated usage is marked above.</p>
+    </div>
+
+    <!-- Summary cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div class="bg-white rounded-lg shadow p-4 text-center">
+            <div class="text-xs text-gray-500 uppercase tracking-wide">Your Best Lap</div>
+            <div class="text-2xl font-mono font-bold text-green-700 mt-1" id="actualTime"></div>
+            <div class="text-xs text-gray-400 mt-1">Lap <span id="lapNum"></span></div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4 text-center border-2 border-purple-200">
+            <div class="text-xs text-gray-500 uppercase tracking-wide">Theoretical Best</div>
+            <div class="text-2xl font-mono font-bold text-purple-700 mt-1" id="simTime"></div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4 text-center">
+            <div class="text-xs text-gray-500 uppercase tracking-wide">Time on Table</div>
+            <div class="text-2xl font-mono font-bold text-red-600 mt-1" id="deltaTime"></div>
+            <div class="text-xs text-gray-400 mt-1" id="deltaPct"></div>
+        </div>
+    </div>
+
+    <!-- Car characteristics + grip stats -->
+    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
+        <div class="bg-gray-50 rounded-lg p-3 text-center">
+            <div class="text-xs text-gray-400">Est. Wheel HP</div>
+            <div class="font-mono font-semibold text-gray-800" id="estPower"></div>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-3 text-center">
+            <div class="text-xs text-gray-400">Max Lateral G</div>
+            <div class="font-mono font-semibold text-gray-800" id="maxLatG"></div>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-3 text-center">
+            <div class="text-xs text-gray-400">Max Braking G</div>
+            <div class="font-mono font-semibold text-gray-800" id="maxBrakeG"></div>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-3 text-center">
+            <div class="text-xs text-gray-400">Top Speed</div>
+            <div class="font-mono font-semibold text-gray-800" id="topSpeed"></div>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-3 text-center">
+            <div class="text-xs text-gray-400">Rotation Rate</div>
+            <div class="font-mono font-semibold text-gray-800" id="latGRate"></div>
+        </div>
+    </div>
+
+    <!-- Turn-by-turn advice -->
+    <div id="turnAdvice" class="bg-white rounded-lg shadow mb-6">
+        <h2 class="text-sm font-semibold text-gray-700 p-4 pb-2">Turn-by-Turn Advice</h2>
+        <p class="text-xs text-gray-400 px-4 pb-2">Based on 95% grip utilization simulation</p>
+        <div id="turnCards" class="divide-y divide-gray-100"></div>
+    </div>
+
+    <!-- Speed comparison chart -->
+    <div class="bg-white rounded-lg shadow p-4 mb-6">
+        <h2 class="text-sm font-semibold text-gray-700 mb-3">Speed Comparison</h2>
+        <div style="height: 280px;">
+            <canvas id="speedChart"></canvas>
+        </div>
+    </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script>
+const sessionID = '{{$.Session.ID}}';
+const MIN_ANIM_MS = 2500; // minimum animation time (slightly over 1 lap at 2s/lap)
+const animStart = performance.now();
+let simData = null;
+let speedChart = null;
+
+fetch('/api/simulate/' + sessionID)
+    .then(r => {
+        if (!r.ok) return r.text().then(t => { throw new Error(t) });
+        return r.json();
+    })
+    .then(data => {
+        simData = data;
+        // Wait for animation to complete at least one full lap
+        const elapsed = performance.now() - animStart;
+        const remaining = Math.max(0, MIN_ANIM_MS - elapsed);
+        setTimeout(showResults, remaining);
+    })
+    .catch(err => {
+        const elapsed = performance.now() - animStart;
+        const remaining = Math.max(0, MIN_ANIM_MS - elapsed);
+        setTimeout(() => {
+            window._animRunning = false;
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('error').classList.remove('hidden');
+            document.getElementById('errorMsg').textContent = err.message;
+        }, remaining);
+    });
+
+function showResults() {
+    window._animRunning = false;
+    document.getElementById('loading').classList.add('hidden');
+    document.getElementById('results').classList.remove('hidden');
+    renderResults(simData);
+}
+
+function formatTime(ms) {
+    const mins = Math.floor(ms / 60000);
+    const secs = Math.floor((ms % 60000) / 1000);
+    const millis = ms % 1000;
+    return mins + ':' + String(secs).padStart(2, '0') + '.' + String(millis).padStart(3, '0');
+}
+
+function formatDelta(ms) {
+    const sign = ms >= 0 ? '+' : '-';
+    const abs = Math.abs(ms);
+    return sign + (abs / 1000).toFixed(3);
+}
+
+// Find the preset index closest to the default utilization
+function findDefaultIdx(presets, defaultUtil) {
+    let best = 0;
+    for (let i = 1; i < presets.length; i++) {
+        if (Math.abs(presets[i].utilization - defaultUtil) < Math.abs(presets[best].utilization - defaultUtil)) {
+            best = i;
+        }
+    }
+    return best;
+}
+
+function renderResults(data) {
+    const presets = data.presets;
+    const distances = data.distances;
+    const defaultIdx = findDefaultIdx(presets, data.default_util);
+
+    // Setup slider
+    const slider = document.getElementById('utilSlider');
+    slider.max = presets.length - 1;
+    slider.value = defaultIdx;
+
+    // Static fields
+    document.getElementById('actualTime').textContent = data.actual_lap_time;
+    document.getElementById('lapNum').textContent = data.lap_number;
+    document.getElementById('maxLatG').textContent = data.max_lat_g.toFixed(3) + ' G';
+    document.getElementById('maxBrakeG').textContent = data.max_brake_g.toFixed(3) + ' G';
+    document.getElementById('topSpeed').textContent = (data.top_speed_kmh * 0.621371).toFixed(0) + ' mph';
+
+    // Estimated grip usage
+    const estUtil = data.estimated_util;
+    document.getElementById('estUtil').textContent = (estUtil * 100).toFixed(1) + '%';
+
+    // Vehicle characteristics
+    const v = data.vehicle;
+    document.getElementById('estPower').textContent = v.est_power_hp > 0 ? Math.round(v.est_power_hp) + ' hp' : '—';
+    document.getElementById('latGRate').textContent = data.lat_g_rate ? data.lat_g_rate.toFixed(1) + ' G/s' : '—';
+
+    // Build speed chart with actual + initial sim
+    const speedCtx = document.getElementById('speedChart').getContext('2d');
+    const actualData = distances.map(p => ({x: p.dist_m, y: p.actual_kmh * 0.621371}));
+    const simData = presets[defaultIdx].sim_speeds_kmh.map((s, i) => ({
+        x: distances[i].dist_m,
+        y: s * 0.621371
+    }));
+
+    speedChart = new Chart(speedCtx, {
+        type: 'scatter',
+        data: {
+            datasets: [
+                {
+                    label: 'Actual',
+                    data: actualData,
+                    borderColor: '#dc2626',
+                    borderWidth: 1.5,
+                    pointRadius: 0,
+                    showLine: true,
+                    fill: false,
+                },
+                {
+                    label: 'Simulated',
+                    data: simData,
+                    borderColor: '#7c3aed',
+                    borderWidth: 1.5,
+                    pointRadius: 0,
+                    showLine: true,
+                    fill: false,
+                    borderDash: [4, 2],
+                },
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 300 },
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+                x: { type: 'linear', title: { display: true, text: 'Distance (m)' }, max: distances[distances.length - 1].dist_m },
+                y: { title: { display: true, text: 'Speed (mph)' } },
+            },
+            plugins: { legend: { position: 'top' } },
+        }
+    });
+
+    // Render turn-by-turn advice
+    if (data.turn_advice && data.turn_advice.length > 0) {
+        const container = document.getElementById('turnCards');
+        data.turn_advice.forEach(t => {
+            const isGood = t.advice.includes('Looks good') || t.advice.includes('driving this turn well');
+            const borderColor = isGood ? 'border-l-green-500' : 'border-l-amber-500';
+            const icon = isGood ? '&#10003;' : '&#9650;';
+            const iconColor = isGood ? 'text-green-600' : 'text-amber-600';
+
+            const card = document.createElement('div');
+            card.className = `px-4 py-3 border-l-4 ${borderColor}`;
+            card.innerHTML = `
+                <div class="flex items-start gap-3">
+                    <span class="${iconColor} text-lg font-bold mt-0.5">${icon}</span>
+                    <div class="flex-1">
+                        <div class="flex items-center gap-3 mb-1">
+                            <span class="font-semibold text-gray-800">${t.name}</span>
+                            <span class="text-xs text-gray-400">
+                                Entry ${Math.round(t.entry_speed_mph)} mph &rarr;
+                                Apex ${Math.round(t.apex_speed_mph)} mph &rarr;
+                                Exit ${Math.round(t.exit_speed_mph)} mph
+                            </span>
+                        </div>
+                        <p class="text-sm text-gray-700">${t.advice}</p>
+                        ${!isGood ? `<div class="text-xs text-gray-400 mt-1">
+                            Sim: Entry ${Math.round(t.sim_entry_mph)} / Apex ${Math.round(t.sim_apex_mph)} / Exit ${Math.round(t.sim_exit_mph)} mph
+                        </div>` : ''}
+                    </div>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    } else {
+        document.getElementById('turnAdvice').classList.add('hidden');
+    }
+
+    // Apply initial preset
+    applyPreset(presets[defaultIdx]);
+
+    // Slider change handler
+    slider.addEventListener('input', () => {
+        const idx = parseInt(slider.value);
+        const preset = presets[idx];
+        applyPreset(preset);
+
+        // Update speed chart
+        const newSimData = preset.sim_speeds_kmh.map((s, i) => ({
+            x: distances[i].dist_m,
+            y: s * 0.621371
+        }));
+        speedChart.data.datasets[1].data = newSimData;
+        speedChart.update();
+    });
+}
+
+function applyPreset(preset) {
+    document.getElementById('utilLabel').textContent = Math.round(preset.utilization * 100) + '%';
+    document.getElementById('simTime').textContent = preset.lap_time;
+    document.getElementById('deltaTime').textContent = formatDelta(preset.delta_ms);
+
+    const pct = preset.delta_pct;
+    const pctEl = document.getElementById('deltaPct');
+    if (pct > 0) {
+        pctEl.textContent = pct.toFixed(1) + '% improvement possible';
+        document.getElementById('deltaTime').className = 'text-2xl font-mono font-bold text-red-600 mt-1';
+    } else {
+        pctEl.textContent = 'Already faster than theoretical!';
+        document.getElementById('deltaTime').className = 'text-2xl font-mono font-bold text-green-600 mt-1';
+    }
+
+}
+</script>
+{{end}}
